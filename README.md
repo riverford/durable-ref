@@ -86,7 +86,7 @@ Pick a suitable directory on your machine for storing values. I am going to use 
 
 ### Value references
 
-Persist a value (obtaining a reference to it, with `persist`) passing a base-uri (directory)
+Obtain a durable reference to a value with `persist` passing a base-uri (directory)
 object and optional opts (e.g `{:format "json"}`).
 
 ```clojure
