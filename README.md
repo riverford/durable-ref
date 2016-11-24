@@ -10,11 +10,6 @@ Provides durable clojure reference types where the values are held off-heap/remo
 
 Such references are available across machines and programs and can persist across JVM restarts.
 
-The library currently provides the following kinds of reference:
-
-- Value references (immutable).
-- Volatile references (mutable/uncoordinated).
-
 ## Usage
 
 Available via clojars:
@@ -22,6 +17,28 @@ Available via clojars:
 ```clojure
 [riverford/durable-ref "0.1.0"]
 ```
+
+Begin with the [tutorial](#Tutorial)
+
+## Provided References
+
+- [Value reference](#Value references)
+
+  An immutable weakly interned, caching reference.
+
+- [Volatile reference](#Volatile references)
+
+  A stable mutable reference, uncoordinated.
+
+## Provided Storages
+- [Memory](#Memory)
+- [File](#File)
+- [Amazon S3](#Amazon S3)
+
+## Provided Formats
+- [EDN](#EDN)
+- [Fressian](#Fressian)
+- [Json](#Json)
 
 ## Rationale
 
@@ -219,15 +236,21 @@ nil
 
 ## 'Batteries included' storages
 
-### Memory (`mem`)
+### Memory
+
+Scheme: `mem`
 
 in-memory storage based on a global ConcurrentHashMap. Useful for testing.
 
-### File (`file`)
+### File
+
+Scheme: `file`
 
 Local disk backed durable storage.
 
-### Amazon S3 (`s3`)
+### Amazon S3
+
+Scheme: `s3`
 
 #### using [amazonica](https://github.com/mcohen01/amazonica)
 
@@ -247,11 +270,15 @@ Local disk backed durable storage.
 
 ## 'Batteries included' formats
 
-### EDN (`edn`, `edn.zip`)
+### EDN
+
+Extensions (`edn`, `edn.zip`)
 
 Serialization using `clojure.edn` and `pr`
 
-### Fressian (`fressian`, `fressian.zip`)
+### Fressian
+
+Extensions (`fressian`, `fressian.zip`)
 
 Serialization via [data.fressian](https://github.com/clojure/data.fressian)
 
@@ -266,7 +293,9 @@ Serialization via [data.fressian](https://github.com/clojure/data.fressian)
                      }}}
 ```
 
-### Json (`json`, `json.zip`)
+### Json
+
+Extensions (`json`, `json.zip`)
 
 #### Using [cheshire](https://github.com/dakrone/cheshire)
 
