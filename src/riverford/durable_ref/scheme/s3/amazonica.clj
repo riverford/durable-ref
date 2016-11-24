@@ -4,7 +4,8 @@
             [clojure.string :as str]
             [clojure.java.io :as io])
   (:import (java.net URI)
-           (java.io ByteArrayOutputStream)))
+           (java.io ByteArrayOutputStream)
+           (com.amazonaws AmazonServiceException)))
 
 (defn- mapply
   ([f m]
@@ -31,22 +32,30 @@
 
 (defmethod dref/read-bytes "s3"
   [^URI uri opts]
-  (let [in (:input-stream (mapply s3/get-object
-                            :bucket-name (.getAuthority uri)
-                            :key (strip-leading-slash (.getPath uri))
-                            (merge
-                              (-> opts :scheme :s3 :amazonica :shared-opts)
-                              (-> opts :scheme :s3 :amazonica :read-opts))))
-        bao (ByteArrayOutputStream.)]
-    (with-open [in in]
-      (io/copy in bao))
-    (.toByteArray bao)))
+  (try
+    (let [in (:input-stream (mapply s3/get-object
+                                    :bucket-name (.getAuthority uri)
+                                    :key (strip-leading-slash (.getPath uri))
+                                    (merge
+                                      (-> opts :scheme :s3 :amazonica :shared-opts)
+                                      (-> opts :scheme :s3 :amazonica :read-opts))))
+          bao (ByteArrayOutputStream.)]
+      (with-open [in in]
+        (io/copy in bao))
+      (.toByteArray bao))
+    (catch AmazonServiceException e
+      (when (not= "NoSuchKey" (.getErrorCode e))
+        (throw e)))))
 
 (defmethod dref/delete-bytes! "s3"
   [^URI uri opts]
-  (mapply s3/delete-object
-    :bucket-name (.getAuthority uri)
-    :key (strip-leading-slash (.getPath uri))
-    (merge
-      (-> opts :scheme :s3 :amazonica :shared-opts)
-      (-> opts :scheme :s3 :amazonica :delete-opts))))
+  (try
+    (mapply s3/delete-object
+            :bucket-name (.getAuthority uri)
+            :key (strip-leading-slash (.getPath uri))
+            (merge
+              (-> opts :scheme :s3 :amazonica :shared-opts)
+              (-> opts :scheme :s3 :amazonica :delete-opts)))
+    (catch AmazonServiceException e
+      (when (not= "NoSuchKey" (.getErrorCode e))
+        (throw e)))))
