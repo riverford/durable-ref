@@ -29,9 +29,12 @@ And later:
 
 `(get-value storage k)`
 
-The problem with this approach as it typically:
-- Doesn't define any properties when referencing the value, e.g can I rely on it being immutable?
+`k` is then a reference in your program to the value in storage.
 
+This is sufficient for many programs. It is close to typical object-oriented style, and allows for different storage implementations.
+
+Howeveer there are some problems with this using this as a basis for referencing values:
+- `k` Does not reflect any properties of the reference, e.g can I rely on it being immutable?
 - storage and format are often complected together.
 - referencing scheme needs to be known by code that wants to look it up (e.g what is `k`?, do I need an equivalent `storage` instance?)
 
