@@ -359,11 +359,12 @@
                         (hex-encode sha1)
                         "."
                         format)))
-           full-uri (URI. (str "value:" uri))]
+           full-uri (URI. (str "value:" uri))
+           deserialized (deserialize bytes format opts)]
        (when (not (interned? (value-ref full-uri)))
          (write-bytes! uri bytes opts))
        (intern-ref
-         (->DurableValueRef full-uri (if (nil? obj) ::nil obj)))))))
+         (->DurableValueRef full-uri (if (nil? deserialized) ::nil deserialized)))))))
 
 (defn deref
   "Attempts to derefence a durable reference and returns a value.
