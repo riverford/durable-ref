@@ -244,7 +244,7 @@ Serialization via [data.fressian](https://github.com/clojure/data.fressian)
 (require '[riverford.durable-ref.format.fressian])
 ```
 
-### Json (`json`)
+### Json (`json`, `json.zip`)
 
 #### Using [cheshire](https://github.com/dakrone/cheshire)
 
