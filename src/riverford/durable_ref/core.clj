@@ -391,8 +391,8 @@
   "Attempts to derefence a durable reference and returns a value.
   dref can be a anything accepted by `reference`.
 
-  May throw an error if in the case of a value ref, storage has been mutated. (override with the *perform-checksum-check*
-  var), it may also throw in general if storage is unavailable or crashes for whatever reason."
+  May throw an error if in the case of a value ref, storage has been mutated.
+   (override with the *verify-hash-identity* var), it may also throw in general if storage is unavailable or crashes for whatever reason."
   ([dref]
    (deref dref {}))
   ([dref opts]
