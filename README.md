@@ -86,7 +86,7 @@ Pick a suitable directory on your machine for storing values. I am going to use 
 
 ### Value references
 
-Obtain a durable reference to a value with `persist` passing a base-uri (directory)
+Obtain a durable reference to a value with `persist`. Passing a base-uri (directory)
 object and optional opts (e.g `{:format "json"}`).
 
 ```clojure
@@ -118,7 +118,7 @@ references can be derefed explicitly, perhaps to signal the fact a deref could f
 {:name "fred" :age 42}
 ```
 
-`deref` also supports additional options (e.g for storage or formats).
+`deref` also supports additional options (e.g to forward to storage and format implementations).
 
 You can obtain a URI to the reference
 ```clojure
@@ -127,7 +127,7 @@ You can obtain a URI to the reference
 #object[java.net.URI 0x437f6d9e "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn"]
 ```
 
-`deref` supports a URI or string directly.
+Most ref operations such as `deref` support using a URI or string directly.
 ```clojure
 (dref/deref "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn")
 ;; =>
