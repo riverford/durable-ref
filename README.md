@@ -1,7 +1,14 @@
 # durable-ref
 
-Provides durable clojure reference types allowing you to reference values
-remotely, or across JVM restarts. With an emphasis on the ability to _share_ them.
+
+> Call him Voldemort, Harry. Always use the proper name for things. Fear of a name increases fear of the thing itself.”
+>
+> J.K. Rowling
+
+
+Provides durable clojure reference types where the values are held off-heap/remotely. With an emphasis on the ability to _share_ them.
+
+Such references are available across machines and programs and can persist across JVM restarts.
 
 The library currently provides the following kinds of reference:
 
