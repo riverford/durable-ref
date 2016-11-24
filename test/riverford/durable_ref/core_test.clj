@@ -98,3 +98,15 @@
       (is (= fred @fred-ref))
       (dref/delete! fred-ref)
       (is (nil? @fred-ref)))))
+
+(deftest test-value-ref-mutation-attempt-throws
+  (let [ref (dref/persist "mem://tests" (UUID/randomUUID))]
+    (is (thrown? Throwable (dref/overwrite! ref (UUID/randomUUID))))
+    (is (thrown? Throwable (dref/delete! ref)))))
+
+(deftest test-value-ref-mutated-in-storage-deref-throws
+  (let [ref (dref/persist "mem://tests" (UUID/randomUUID))
+        sneaky-ref (dref/reference (str "volatile:" (.getSchemeSpecificPart (dref/uri ref))))]
+    (dref/overwrite! sneaky-ref (UUID/randomUUID))
+    (dref/evict! ref)
+    (is (thrown? Throwable @ref))))

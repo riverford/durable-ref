@@ -152,6 +152,9 @@
   (-deref [this opts])
   (-props [this]))
 
+(defprotocol IDurableCachedRef
+  (-evict! [this]))
+
 (deftype DurableVolatileRef [^URI uri]
   IDurableRef
   (-deref [this opts]
@@ -194,12 +197,12 @@
 (def ^:dynamic *verify-hash-identity*
   true)
 
-(deftype DurableValueRef [uri ^:volatile-mutable _val]
+(deftype DurableValueRef [uri ^:volatile-mutable val]
   IDurableRef
   (-deref [this opts]
     (cond
-      (= ::nil _val) nil
-      (some? _val) _val
+      (= ::nil val) nil
+      (some? val) val
       :else (locking this
               (let [sub-uri (URI. (.getSchemeSpecificPart ^URI uri))
                     path (.getPath sub-uri)
@@ -214,12 +217,15 @@
                                      first
                                      str/lower-case)))
                     (let [v (deserialize-from bytes sub-uri opts)]
-                      (set! _val v)
+                      (set! val v)
                       v)
                     (throw (IllegalStateException. "DurableValueRef checksum mismatch. Storage may have been mutated."))))))))
   (-props [this]
     {:uri uri
      :read-only? true})
+  IDurableCachedRef
+  (-evict! [this]
+    (set! val nil))
   IDeref
   (deref [this]
     (-deref this {}))
@@ -401,6 +407,14 @@
    (if (satisfies? IDurableRef dref)
      (-deref dref opts)
      (recur (reference dref) opts))))
+
+(defn evict!
+  "Forceably removes any cached value from the ref if present."
+  [dref]
+  (if (satisfies? IDurableRef dref)
+    (when (satisfies? IDurableCachedRef dref)
+      (-evict! dref))
+    (evict! (reference dref))))
 
 ;; in memory impl
 
