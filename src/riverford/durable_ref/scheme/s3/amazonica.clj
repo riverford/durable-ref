@@ -26,8 +26,8 @@
     :metadata {:content-length (count bytes)}
     :input-stream (io/input-stream bytes)
     (merge
-      (-> opts :s3 :amazonica :shared-opts)
-      (-> opts :s3 :amazonica :write-opts))))
+      (-> opts :scheme :s3 :amazonica :shared-opts)
+      (-> opts :scheme :s3 :amazonica :write-opts))))
 
 (defmethod dref/read-bytes "s3"
   [^URI uri opts]
@@ -35,8 +35,8 @@
                             :bucket-name (.getAuthority uri)
                             :key (strip-leading-slash (.getPath uri))
                             (merge
-                              (-> opts :s3 :amazonica :shared-opts)
-                              (-> opts :s3 :amazonica :read-opts))))
+                              (-> opts :scheme :s3 :amazonica :shared-opts)
+                              (-> opts :scheme :s3 :amazonica :read-opts))))
         bao (ByteArrayOutputStream.)]
     (with-open [in in]
       (io/copy in bao))
@@ -48,5 +48,5 @@
     :bucket-name (.getAuthority uri)
     :key (strip-leading-slash (.getPath uri))
     (merge
-      (-> opts :s3 :amazonica :shared-opts)
-      (-> opts :s3 :amazonica :delete-opts))))
+      (-> opts :scheme :s3 :amazonica :shared-opts)
+      (-> opts :scheme :s3 :amazonica :delete-opts))))

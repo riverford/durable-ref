@@ -14,21 +14,21 @@
 (defmethod dref/serialize "fressian"
   [obj _ opts]
   (let [bao (ByteArrayOutputStream.)]
-    (with-open [fw (mapply fress/create-writer bao (:fressian opts))]
+    (with-open [fw (mapply fress/create-writer bao (-> opts :format :fressian :write-opts))]
       (fress/write-object fw obj))
     (.toByteArray bao)))
 
 (defmethod dref/deserialize "fressian"
   [in _ opts]
   (with-open [in (io/input-stream in)
-              fr (mapply fress/create-reader in (:fressian opts))]
+              fr (mapply fress/create-reader in (-> opts :format :fressian :read-opts))]
     (fress/read-object fr)))
 
 (defmethod dref/serialize "fressian.zip"
   [obj _ opts]
   (let [bao (ByteArrayOutputStream.)]
     (with-open [gzipo (GZIPOutputStream. bao)
-                fw (mapply fress/create-writer gzipo (:fressian opts))]
+                fw (mapply fress/create-writer gzipo (-> opts :format :fressian :write-opts))]
       (fress/write-object fw obj))
     (.toByteArray bao)))
 
@@ -36,5 +36,5 @@
   [in _ opts]
   (with-open [in (io/input-stream in)
               gzipi (GZIPInputStream. in)
-              fr (mapply fress/create-reader gzipi (:fressian opts))]
+              fr (mapply fress/create-reader gzipi (-> opts :format :fressian :read-opts))]
     (fress/read-object fr)))
