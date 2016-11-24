@@ -33,10 +33,10 @@ And later:
 
 This is sufficient for many programs. It is close to typical object-oriented style, and allows for different storage implementations.
 
-Howeveer there are some problems with this using this as a basis for referencing values:
+However there are some problems with this using this style to reference values:
 - `k` Does not reflect any properties of the reference, e.g can I rely on it being immutable?
-- storage and format are often complected together.
-- referencing scheme needs to be known by code that wants to look it up (e.g what is `k`?, do I need an equivalent `storage` instance?)
+- storage itself and storage format are often complected together.
+- The referencing scheme needs to be known by code that wants to do look ups (e.g what is `k`?, do I need an equivalent `storage` instance?)
 
 This library defines an extensible URI based set of conventions that allows different reference
 mechanisms to be implemented on top of the same storages and formats.
