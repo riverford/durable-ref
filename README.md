@@ -227,6 +227,15 @@ Local disk backed durable storage.
 ```clojure
 :dependencies [amazonica "0.3.77"]
 (require '[riverford.durable-ref.scheme.s3.amazonica])
+
+;; Storage options (optionally provide in an options map to persist, deref, overwrite!, delete!)
+;; see amazonica documentation for more information
+{:scheme {:s3 {:amazonica {:shared-opts {} ;; spliced into all amazonica requests
+                          :read-opts {}  ;; spliced into get-object requests
+                          :write-opts {} ;; spliced into put-object requests
+                          :delete-opts {} ;; spliced into delete-object requests
+                          }}}}
+
 ```
 
 ## 'Batteries included' formats
@@ -242,6 +251,12 @@ Serialization via [data.fressian](https://github.com/clojure/data.fressian)
 ```clojure
 :dependencies [org.clojure/data.fressian "0.2.1"]
 (require '[riverford.durable-ref.format.fressian])
+
+;; Format options (optionally provide in an options map to persist, deref, overwrite!, delete!)
+;; see fressian docs for more details
+{:format {:fressian {:read-opts {} ;; spliced into create-reader calls
+                     :write-opts {} ;; spliced into create-writer calls
+                     }}}
 ```
 
 ### Json (`json`, `json.zip`)
@@ -251,6 +266,14 @@ Serialization via [data.fressian](https://github.com/clojure/data.fressian)
 ```clojure
 :dependencies [cheshire "5.6.3"]
 (require '[riverford.durable-ref.format.json.cheshire])
+
+;; Format options (optionally provide in an options map to persist, deref, overwrite!, delete!)
+;; see cheshire docs for more details
+{:format {:json {:cheshire  {:write-opts {} ;; passed as options to generate-stream calls
+                             :read-opts {
+                               :key-fn f1 ;; passed as the `key-fn` arg to parse-stream calls
+                               :array-coerce-fn f2 ;; passed as the `array-coerce-fn` to parse-stream calls
+                              }}}}}
 ```
 
 ## Extension
