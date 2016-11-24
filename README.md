@@ -142,7 +142,7 @@ If storage changes, value references will throw on deref.
 `reference` reacquires a reference object of the correct type from a URI or string.
 
 ```clojure
-(reference "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn")
+(dref/reference "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn")
 ;; =>
 #object[riverford.durable_ref.core.DurableValueRef
         "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn"]
@@ -165,28 +165,28 @@ e.g
 You can `deref` it like normal (even if its never been written to).
 
 ```clojure
-(deref "volatile:file:///users/danielstone/objects/fred.edn")
+(dref/deref "volatile:file:///users/danielstone/objects/fred.edn")
 ;; =>
 nil
 ```
 
 You can mutate the ref with `overwrite!`
 ```clojure
-(overwrite! "volatile:file:///users/danielstone/objects/fred.edn" {:name "fred"})
+(dref/overwrite! "volatile:file:///users/danielstone/objects/fred.edn" {:name "fred"})
 ;; =>
 nil
 
 ;; be aware, that the ability to read immediately
 ;; is determined by the consistency properties of your storage
 ;; (always assume possibilty of stale values)
-(deref "volatile:file:///users/danielstone/objects/fred.edn")
+(dref/deref "volatile:file:///users/danielstone/objects/fred.edn")
 ;; =>
 {:name "fred"}
 ```
 
 You can call `reference` on it to acquire reference object.
 ```clojure
-(def fred-mut-ref (reference "volatile:file:///users/danielstone/objects/fred.edn"))
+(def fred-mut-ref (dref/reference "volatile:file:///users/danielstone/objects/fred.edn"))
 fred-mut-ref
 ;; =>
 #object[riverford.durable_ref.core.DurableVolatileRef "volatile:file:///users/danielstone/objects/fred.edn"]
@@ -201,7 +201,7 @@ The reference object implements `clojure.lang.IDeref`
 
 Finally mutable refs can be deleted (when the storage supports it) with `delete!`
 ```clojure
-(delete! fred-mut-ref)
+(dref/delete! fred-mut-ref)
 ;; =>
 nil
 
