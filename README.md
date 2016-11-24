@@ -1,7 +1,7 @@
 # durable-ref
 
 Provides durable clojure reference types allowing you to reference values
-remotely, or across restarts.
+remotely, or across JVM restarts. With an emphasis on the ability to _share_ them.
 
 The library currently provides a couple of simple kinds of reference:
 
