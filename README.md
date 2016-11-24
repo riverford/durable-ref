@@ -18,27 +18,27 @@ Available via clojars:
 [riverford/durable-ref "0.1.0"]
 ```
 
-Begin with the [tutorial](#Tutorial)
+Begin with the [tutorial](#tutorial)
 
 ## Provided References
 
-- [Value reference](#Value references)
+- [Value reference](#value-references)
 
   An immutable weakly interned, caching reference.
 
-- [Volatile reference](#Volatile references)
+- [Volatile reference](#volatile-references)
 
   A stable mutable reference, uncoordinated.
 
 ## Provided Storages
-- [Memory](#Memory)
-- [File](#File)
-- [Amazon S3](#Amazon S3)
+- [Memory](#memory)
+- [File](#file)
+- [Amazon S3](#amazon-s3)
 
 ## Provided Formats
-- [EDN](#EDN)
-- [Fressian](#Fressian)
-- [Json](#Json)
+- [EDN](#edn)
+- [Fressian](#fressian)
+- [Json](#json)
 
 ## Rationale
 
