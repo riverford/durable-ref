@@ -70,7 +70,7 @@ Because value references require immutability, programs are able to cache the va
 
 This is done internally by weak-interning results of `(reference uri)` calls where the uri denotes a value (as opposed to a mutable or ambiguous reference).
 
-This means you can maintain an arbitrary number of aliases of the reference and only pay the cost of deref once (or until all instances of the reference are GC's)
+This means you can maintain an arbitrary number of aliases of the reference and only pay the cost of deref once (or until all instances of the reference are GC'd)
 
 There is no caching of deref results on mutable references.
 
