@@ -83,7 +83,7 @@ This approach conveys several benefits:
 - Storage and format are seperate components, independent of reference semantics and can be changed (and extended) independently.
 - Semantics of the reference are encoded in the scheme, allowing one to e.g leverage the persistence/immutablity of the reference
 to e.g cache values pervasively.
-- URI's are themselves values, they can be exhanged freely over the wire in different formats, yet preserving the meaning of the reference.
+- URI's are themselves values, they can be exhanged freely over the wire in different formats, whilst preserving the meaning of the reference.
 
 I hope this library starts the conversation on how durable reference types should be implemented in a consistent way. The goal being that the references can be shared between programs
 without them having knowledge of one anothers internals.
