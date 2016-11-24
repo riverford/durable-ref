@@ -6,9 +6,9 @@
 > J.K. Rowling
 
 
-Provides durable clojure reference types where the values are held off-heap/remotely. With an emphasis on the ability to _share_ them.
+Provides durable clojure reference types where the values are not always local to the program.
 
-Such references are available across machines and programs and can persist across JVM restarts.
+Places a heavy emphasis on the ability to _share_ references.
 
 ## Usage
 
