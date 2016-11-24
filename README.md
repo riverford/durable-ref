@@ -214,7 +214,7 @@ nil
 
 ### Memory (`mem`)
 
-in-memory storage based on a singleton ConcurrentHashMap.
+in-memory storage based on a global ConcurrentHashMap. Useful for testing.
 
 ### File (`file`)
 
