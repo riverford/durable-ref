@@ -5,35 +5,20 @@
   (:import (java.util.zip GZIPInputStream GZIPOutputStream)
            (java.io ByteArrayOutputStream)))
 
-(defmethod dref/serialize "fress.zip"
-  [obj _]
-  (let [bao (ByteArrayOutputStream.)]
-    (with-open [zipout (GZIPOutputStream. bao)
-                w (fress/create-writer zipout)]
-      (fress/write-object w obj))
-    (.toByteArray bao)))
-
-(defmethod dref/deserialize "fress.zip"
-  [in _]
-  (with-open [in (io/input-stream in)
-              zipin (GZIPInputStream. in)
-              rdr (fress/create-reader zipin)]
-    (fress/read-object rdr)))
-
-(defmethod dref/serialize "fress"
+(defmethod dref/serialize "fressian"
   [obj _]
   (let [bao (ByteArrayOutputStream.)]
     (with-open [fw (fress/create-writer bao)]
       (fress/write-object fw obj))
     (.toByteArray bao)))
 
-(defmethod dref/deserialize "fress"
+(defmethod dref/deserialize "fressian"
   [in _]
   (with-open [in (io/input-stream in)
               fr (fress/create-reader in)]
     (fress/read-object fr)))
 
-(defmethod dref/serialize "fress.zip"
+(defmethod dref/serialize "fressian.zip"
   [obj _]
   (let [bao (ByteArrayOutputStream.)]
     (with-open [gzipo (GZIPOutputStream. bao)
@@ -41,7 +26,7 @@
       (fress/write-object fw obj))
     (.toByteArray bao)))
 
-(defmethod dref/deserialize "fress.zip"
+(defmethod dref/deserialize "fressian.zip"
   [in _]
   (with-open [in (io/input-stream in)
               gzipi (GZIPInputStream. in)
