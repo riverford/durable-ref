@@ -258,7 +258,7 @@ Serialization via [data.fressian](https://github.com/clojure/data.fressian)
 ### Storage
 
 There are 3 multimethods you can implement currently (dispatching on the scheme):
-- `read-bytes`, receives the uri and options passed to `deref`
+- `read-bytes`, receives the uri and options passed to `deref`. Returns a byte array or nil.
 - `write-bytes!`, receives the uri, the serialized byte array and options passed to `persist!`,`overwrite!.`
 - (optional) `delete-bytes!`, receives the uri and options passed to `delete!`.
 
