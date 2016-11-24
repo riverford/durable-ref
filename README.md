@@ -154,7 +154,7 @@ Even if your storage does not immediately reflect your write, its ok as long as 
 returned by `persist`, this is because the value is pre-cached. Due to reference weak-interning, you can alias it
 as a URI or string and as long as the reference hasn't been GC'd, you will continue to see the value.
 
-### Mutable references (volatile)
+### Volatile references
 
 Rather than using persist!, mutable references are first named explicitly. So decide on an absolute URI.
 
