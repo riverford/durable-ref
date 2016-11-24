@@ -147,8 +147,7 @@
       (deserialize-from bytes uri opts)))
   (-props [this]
     {:uri uri
-     :read-only? false
-     :cacheable? false})
+     :read-only? false})
   IDeref
   (deref [this]
     (-deref this {}))
@@ -207,9 +206,7 @@
                     (throw (IllegalStateException. "DurableValueRef checksum mismatch. Storage may have been mutated."))))))))
   (-props [this]
     {:uri uri
-     :read-only? true
-     :cacheable? true
-     :cache-hot? (some? _val)})
+     :read-only? true})
   IDeref
   (deref [this]
     (-deref this {}))
@@ -237,8 +234,7 @@
       (deserialize-from bytes uri opts)))
   (-props [this]
     {:uri uri
-     :read-only? true
-     :cacheable? false})
+     :read-only? true})
   IDeref
   (deref [this]
     (-deref this {}))
