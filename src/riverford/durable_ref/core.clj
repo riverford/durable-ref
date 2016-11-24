@@ -39,23 +39,23 @@
 (comment
   (set! *warn-on-reflection* true))
 
-(defmulti serialize (fn [obj format] format))
-(defmulti deserialize (fn [in format] format))
+(defmulti serialize (fn [obj format opts] format))
+(defmulti deserialize (fn [in format opts] format))
 
 (defmethod serialize :default
-  [obj format]
+  [obj format opts]
   (if-some [idx (some-> format (str/index-of "."))]
-    (serialize obj (subs format (inc idx)))
+    (serialize obj (subs format (inc idx)) opts)
     (throw (IllegalArgumentException. (clojure.core/format "No serialize impl defined for format %s" format)))))
 
 (defmethod deserialize :default
-  [in format]
+  [in format opts]
   (if-some [idx (some-> format (str/index-of "."))]
-    (deserialize in (subs format (inc idx)))
+    (deserialize in (subs format (inc idx)) opts)
     (throw (IllegalArgumentException. (clojure.core/format "No deserialize impl defined for format %s" format)))))
 
 (defmethod serialize "edn"
-  [obj _]
+  [obj _ opts]
   (let [bao (ByteArrayOutputStream.)]
     (with-open [w (io/writer bao)]
       (binding [*out* w]
@@ -63,14 +63,14 @@
     (.toByteArray bao)))
 
 (defmethod deserialize "edn"
-  [in _]
+  [in _ opts]
   (with-open [in (io/input-stream in)
               rdr (io/reader in)
               prdr (PushbackReader. rdr)]
     (edn/read prdr)))
 
 (defmethod serialize "edn.zip"
-  [obj _]
+  [obj _ opts]
   (let [bao (ByteArrayOutputStream.)]
     (with-open [zipout (GZIPOutputStream. bao)
                 w (io/writer zipout)]
@@ -79,7 +79,7 @@
     (.toByteArray bao)))
 
 (defmethod deserialize "edn.zip"
-  [in _]
+  [in _ opts]
   (with-open [in (io/input-stream in)
               zipin (GZIPInputStream. in)
               rdr (io/reader zipin)
@@ -87,12 +87,12 @@
     (edn/read prdr)))
 
 (defn- serialize-to
-  [obj uri]
-  (serialize obj (.getPath ^URI uri)))
+  [obj uri opts]
+  (serialize obj (.getPath ^URI uri) opts))
 
 (defn- deserialize-from
-  [obj uri]
-  (deserialize obj (.getPath ^URI uri)))
+  [obj uri opts]
+  (deserialize obj (.getPath ^URI uri) opts))
 
 (defmulti read-bytes (fn [uri opts] (.getScheme ^URI uri)))
 
@@ -120,7 +120,7 @@
   IDurableRef
   (-deref [this opts]
     (when-some [bytes (read-bytes (.getSchemeSpecificPart uri) opts)]
-      (deserialize-from bytes uri)))
+      (deserialize-from bytes uri opts)))
   (-props [this]
     {:uri uri
      :read-only? false
@@ -177,7 +177,7 @@
                                      (str/split #"\.")
                                      first
                                      str/lower-case)))
-                    (let [v (deserialize-from bytes sub-uri)]
+                    (let [v (deserialize-from bytes sub-uri opts)]
                       (set! _val v)
                       v)
                     (throw (IllegalStateException. "DurableValueRef checksum mismatch. Storage may have been mutated."))))))))
@@ -206,42 +206,11 @@
                (format "Invalid URI, scheme must be value (got %s)" (.getScheme uri)))))
     (->DurableValueRef uri nil)))
 
-(defn persist!
-  "Persists the obj to a unique location (by value) under `base-uri`.
-  Returns a DurableValueRef to the object."
-  ([base-uri obj]
-   (persist! base-uri obj {}))
-  ([base-uri obj opts]
-   (let [format (name (or (:format opts) "edn"))
-         base-uri (URI. (str base-uri))
-         scheme (.getScheme base-uri)]
-     (when (nil? (get-method serialize format))
-       (throw (IllegalArgumentException. (clojure.core/format "No serialize impl for format (%s)." format))))
-
-     (when (nil? (get-method read-bytes scheme))
-       (throw (IllegalArgumentException. (clojure.core/format "No read-bytes impl for uri scheme (%s)"
-                                                              scheme))))
-     (when (nil? (get-method write-bytes! scheme))
-       (throw (IllegalArgumentException. (clojure.core/format "No write-bytes! impl for uri scheme (%s)"
-                                                              scheme))))
-     (let [bytes (serialize obj format)
-           sha1 (hash-identity bytes)
-           base-uri (str base-uri)
-           uri (URI.
-                 (str/lower-case
-                   (str base-uri
-                        (when-not (str/ends-with? base-uri "/") "/")
-                        (hex-encode sha1)
-                        "."
-                        format)))]
-       (write-bytes! uri bytes (-> opts :scheme-opts (get scheme)))
-       (->DurableValueRef (str "value:" uri) (if (nil? obj) ::nil obj))))))
-
 (deftype DurableReadonlyRef [uri]
   IDurableRef
   (-deref [this opts]
     (when-some [bytes (read-bytes uri opts)]
-      (deserialize-from bytes uri)))
+      (deserialize-from bytes uri opts)))
   (-props [this]
     {:uri uri
      :read-only? true
@@ -264,8 +233,17 @@
 
 (prefer-method print-method riverford.durable_ref.core.IDurableRef IDeref)
 
-(def ^:private intern-val
-  (let [pool (WeakHashMap.)]
+(def ^:private intern-pool
+  (WeakHashMap.))
+
+(def ^:private interned?
+  (let [pool ^WeakHashMap intern-pool]
+    (fn [obj]
+      (locking pool
+        (.containsKey pool obj)))))
+
+(def ^:private intern-ref
+  (let [pool ^WeakHashMap intern-pool]
     (fn [obj]
       (locking pool
         (loop [ret nil]
@@ -306,7 +284,7 @@
 
         (case scheme
           "volatile" (volatile-ref uri)
-          "value" (intern-val (value-ref uri))
+          "value" (intern-ref (value-ref uri))
 
           (throw (IllegalArgumentException. (format "Invalid reference scheme %s" scheme))))))))
 
@@ -333,9 +311,8 @@
        (when (read-only? dref)
          (throw (IllegalArgumentException. "Cannot overwrite a readonly ref.")))
        (let [uri (uri dref)
-             sub-uri (.getSchemeSpecificPart ^URI uri)
-             sub-scheme (.getScheme (URI. ^URI uri))]
-         (write-bytes! sub-uri (serialize-to obj sub-uri) (-> opts :scheme-opts (get sub-scheme))))
+             sub-uri (.getSchemeSpecificPart ^URI uri)]
+         (write-bytes! sub-uri (serialize-to obj sub-uri opts) opts))
        nil)
      (recur (reference dref) obj opts))))
 
@@ -350,10 +327,43 @@
      (do
        (when (read-only? dref)
          (throw (IllegalArgumentException. "Cannot delete a readonly ref")))
-       (let [uri (uri dref)
-             sub-scheme (.getScheme (URI. (.getSchemeSpecificPart uri)))]
-         (delete-bytes! uri (-> opts :scheme-opts (get sub-scheme)))))
+       (let [uri (uri dref)]
+         (delete-bytes! uri opts)))
      (recur (reference dref) opts))))
+
+(defn persist!
+  "Persists the obj to a unique location (by value) under `base-uri`.
+  Returns a DurableValueRef to the object."
+  ([base-uri obj]
+   (persist! base-uri obj {}))
+  ([base-uri obj opts]
+   (let [format (name (or (:format opts) "edn"))
+         base-uri (URI. (str base-uri))
+         scheme (.getScheme base-uri)]
+     (when (nil? (get-method serialize format))
+       (throw (IllegalArgumentException. (clojure.core/format "No serialize impl for format (%s)." format))))
+
+     (when (nil? (get-method read-bytes scheme))
+       (throw (IllegalArgumentException. (clojure.core/format "No read-bytes impl for uri scheme (%s)"
+                                                              scheme))))
+     (when (nil? (get-method write-bytes! scheme))
+       (throw (IllegalArgumentException. (clojure.core/format "No write-bytes! impl for uri scheme (%s)"
+                                                              scheme))))
+     (let [bytes (serialize obj format opts)
+           sha1 (hash-identity bytes)
+           base-uri (str base-uri)
+           uri (URI.
+                 (str/lower-case
+                   (str base-uri
+                        (when-not (str/ends-with? base-uri "/") "/")
+                        (hex-encode sha1)
+                        "."
+                        format)))
+           full-uri (URI. (str "value:" uri))]
+       (when (not (interned? (value-ref full-uri)))
+         (write-bytes! uri bytes opts))
+       (intern-ref
+         (->DurableValueRef full-uri (if (nil? obj) ::nil obj)))))))
 
 (defn deref
   "Attempts to derefence a durable reference and returns a value.
@@ -365,9 +375,7 @@
    (deref dref {}))
   ([dref opts]
    (if (satisfies? IDurableRef dref)
-     (let [uri (uri dref)
-           sub-scheme (.getScheme (URI. (.getSchemeSpecificPart uri)))]
-       (-deref dref (-> opts :scheme-opts (get sub-scheme))))
+     (-deref dref opts)
      (recur (reference dref) opts))))
 
 ;; in memory impl

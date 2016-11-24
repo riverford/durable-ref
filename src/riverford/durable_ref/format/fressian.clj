@@ -5,30 +5,34 @@
   (:import (java.util.zip GZIPInputStream GZIPOutputStream)
            (java.io ByteArrayOutputStream)))
 
+(defn- mapply
+  ([f m]        (apply f (apply concat m)))
+  ([f a & args] (apply f a (apply concat (butlast args) (last args)))))
+
 (defmethod dref/serialize "fressian"
-  [obj _]
+  [obj _ opts]
   (let [bao (ByteArrayOutputStream.)]
-    (with-open [fw (fress/create-writer bao)]
+    (with-open [fw (mapply fress/create-writer bao (:fressian opts))]
       (fress/write-object fw obj))
     (.toByteArray bao)))
 
 (defmethod dref/deserialize "fressian"
-  [in _]
+  [in _ opts]
   (with-open [in (io/input-stream in)
-              fr (fress/create-reader in)]
+              fr (mapply fress/create-reader in (:fressian opts))]
     (fress/read-object fr)))
 
 (defmethod dref/serialize "fressian.zip"
-  [obj _]
+  [obj _ opts]
   (let [bao (ByteArrayOutputStream.)]
     (with-open [gzipo (GZIPOutputStream. bao)
-                fw (fress/create-writer gzipo)]
+                fw (mapply fress/create-writer gzipo (:fressian opts))]
       (fress/write-object fw obj))
     (.toByteArray bao)))
 
 (defmethod dref/deserialize "fressian.zip"
-  [in _]
+  [in _ opts]
   (with-open [in (io/input-stream in)
               gzipi (GZIPInputStream. in)
-              fr (fress/create-reader gzipi)]
+              fr (mapply fress/create-reader gzipi (:fressian opts))]
     (fress/read-object fr)))
