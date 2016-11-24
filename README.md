@@ -115,7 +115,7 @@ object and optional opts (e.g `{:format "json"}`).
 
 ```clojure
 (def fred-ref
- (persist "file:///Users/me/objects"
+ (persist "file:///users/danielstone/objects"
   {:name "fred"
    :age 42}))
 fred-ref
