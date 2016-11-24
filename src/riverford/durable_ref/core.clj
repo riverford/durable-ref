@@ -5,7 +5,7 @@
    (let [dref (dref/persist \"file:///Users/foobar/objects\" 42 {:format \"edn\"})]
      @dref ;;derefable
      (dref/reference (uri dref)) ;; reobtain the reference from a URI
-     (dref/deref (uri dref)) ;; alternative deref operator, takes a URI (and additional options)
+     (dref/value (uri dref)) ;; alternative deref operator, takes a URI (and additional options)
     )
 
   Reference identity is a URI, the scheme of which determines the type.
@@ -29,7 +29,7 @@
   Further formats can be found inthe `format` package.
   Extend to new formats via the multimethods `serialize` and `deserialize`.
 
-  You can deref data with a URI, (or string uri), or a reference object obtained with `reference`.
+  You can deref via `value` a URI, (or string uri), or a reference object obtained with `reference`.
 
   Example URI's:
   `volatile:mem://foo/bar/baz.edn`
@@ -155,8 +155,9 @@
 (deftype DurableVolatileRef [^URI uri]
   IDurableRef
   (-deref [this opts]
-    (when-some [bytes (read-bytes (URI. (.getSchemeSpecificPart uri)) opts)]
-      (deserialize-from bytes uri opts)))
+    (let [sub-uri (URI. (.getSchemeSpecificPart uri))]
+      (when-some [bytes (read-bytes sub-uri opts)]
+        (deserialize-from bytes sub-uri opts))))
   (-props [this]
     {:uri uri
      :read-only? false})
@@ -343,7 +344,7 @@
        (when (read-only? dref)
          (throw (IllegalArgumentException. "Cannot overwrite a readonly ref.")))
        (let [uri (uri dref)
-             sub-uri (.getSchemeSpecificPart ^URI uri)]
+             sub-uri (URI. (.getSchemeSpecificPart ^URI uri))]
          (write-bytes! sub-uri (serialize-to obj sub-uri opts) opts))
        nil)
      (recur (reference dref) obj opts))))
@@ -359,8 +360,9 @@
      (do
        (when (read-only? dref)
          (throw (IllegalArgumentException. "Cannot delete a readonly ref")))
-       (let [uri (uri dref)]
-         (delete-bytes! uri opts)))
+       (let [uri (uri dref)
+             sub-uri (URI. (.getSchemeSpecificPart uri))]
+         (delete-bytes! sub-uri opts)))
      (recur (reference dref) opts))))
 
 (defn persist
@@ -387,14 +389,14 @@
      (intern-ref
        (->DurableValueRef full-uri (if (nil? deserialized) ::nil deserialized))))))
 
-(defn deref
+(defn value
   "Attempts to derefence a durable reference and returns a value.
   dref can be a anything accepted by `reference`.
 
   May throw an error if in the case of a value ref, storage has been mutated.
    (override with the *verify-hash-identity* var), it may also throw in general if storage is unavailable or crashes for whatever reason."
   ([dref]
-   (deref dref {}))
+   (value dref {}))
   ([dref opts]
    (if (satisfies? IDurableRef dref)
      (-deref dref opts)

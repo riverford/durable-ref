@@ -94,7 +94,7 @@ Because value references require immutability, programs are able to cache the va
 
 This is done internally by weak-interning results of `(reference uri)` calls where the uri denotes a value (as opposed to a mutable or ambiguous reference).
 
-This means you can maintain an arbitrary number of aliases of the reference and only pay the cost of deref once (or until all instances of the reference are GC'd)
+This means you can maintain an arbitrary number of aliases of the reference and only pay the cost of a dereference once (or until all instances of the reference are GC'd)
 
 There is no caching of deref results on mutable references.
 
@@ -134,15 +134,15 @@ references implement `clojure.lang.IDeref`
 {:name "fred", :age 42}
 ```
 
-references can be derefed explicitly, perhaps to signal the fact a deref could fail (due to unavailability of storage)
+alternatively, references can be derefenced with `value`, perhaps to signal the fact a deref could fail (due to unavailability of storage)
 
 ```clojure
-(dref/deref fred-ref)
+(dref/value fred-ref)
 ;; =>
 {:name "fred" :age 42}
 ```
 
-`deref` also supports additional options (e.g to forward to storage and format implementations).
+`value` also supports additional options (e.g to forward to storage and format implementations).
 
 You can obtain a URI to the reference
 ```clojure
@@ -151,15 +151,15 @@ You can obtain a URI to the reference
 #object[java.net.URI 0x437f6d9e "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn"]
 ```
 
-Most ref operations such as `deref` support using a URI or string directly.
+Most ref operations such as `value` support using a URI or string directly.
 ```clojure
-(dref/deref "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn")
+(dref/value "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn")
 ;; =>
 {:name "fred", :age 42}
 ```
 
 Values are cached for value references, and reference instances themselves are weak-interned via
-a WeakHashMap. Repeated `deref`/`persist!` calls on the same value will be very cheap while reference instances are on the heap.
+a WeakHashMap. Repeated `value`/`persist!` calls on the same value will be very cheap while reference instances are on the heap.
 
 If storage changes, value references will throw on deref.
 
@@ -186,10 +186,10 @@ e.g
 
 `volatile:file:///users/danielstone/objects/fred.edn`
 
-You can `deref` it like normal (even if its never been written to).
+You can `value` it like normal (even if its never been written to).
 
 ```clojure
-(dref/deref "volatile:file:///users/danielstone/objects/fred.edn")
+(dref/value "volatile:file:///users/danielstone/objects/fred.edn")
 ;; =>
 nil
 ```
@@ -203,7 +203,7 @@ nil
 ;; be aware, that the ability to read immediately
 ;; is determined by the consistency properties of your storage
 ;; (always assume possibilty of stale values)
-(dref/deref "volatile:file:///users/danielstone/objects/fred.edn")
+(dref/value "volatile:file:///users/danielstone/objects/fred.edn")
 ;; =>
 {:name "fred"}
 ```
@@ -258,7 +258,7 @@ Scheme: `s3`
 :dependencies [amazonica "0.3.77"]
 (require '[riverford.durable-ref.scheme.s3.amazonica])
 
-;; Storage options (optionally provide in an options map to persist, deref, overwrite!, delete!)
+;; Storage options (optionally provide in an options map to persist, value, overwrite!, delete!)
 ;; see amazonica documentation for more information
 {:scheme {:s3 {:amazonica {:shared-opts {} ;; spliced into all amazonica requests
                           :read-opts {}  ;; spliced into get-object requests
@@ -286,7 +286,7 @@ Serialization via [data.fressian](https://github.com/clojure/data.fressian)
 :dependencies [org.clojure/data.fressian "0.2.1"]
 (require '[riverford.durable-ref.format.fressian])
 
-;; Format options (optionally provide in an options map to persist, deref, overwrite!, delete!)
+;; Format options (optionally provide in an options map to persist, value, overwrite!, delete!)
 ;; see fressian docs for more details
 {:format {:fressian {:read-opts {} ;; spliced into create-reader calls
                      :write-opts {} ;; spliced into create-writer calls
@@ -303,7 +303,7 @@ Extensions (`json`, `json.zip`)
 :dependencies [cheshire "5.6.3"]
 (require '[riverford.durable-ref.format.json.cheshire])
 
-;; Format options (optionally provide in an options map to persist, deref, overwrite!, delete!)
+;; Format options (optionally provide in an options map to persist, value, overwrite!, delete!)
 ;; see cheshire docs for more details
 {:format {:json {:cheshire  {:write-opts {} ;; passed as options to generate-stream calls
                              :read-opts {
@@ -317,7 +317,7 @@ Extensions (`json`, `json.zip`)
 ### Storage
 
 There are 3 multimethods you can implement currently (dispatching on the scheme):
-- `read-bytes`, receives the uri and options passed to `deref`. Returns a byte array or nil.
+- `read-bytes`, receives the uri and options passed to `value`. Returns a byte array or nil.
 - `write-bytes!`, receives the uri, the serialized byte array and options passed to `persist!`,`overwrite!.`
 - (optional) `delete-bytes!`, receives the uri and options passed to `delete!`.
 
@@ -325,7 +325,7 @@ There are 3 multimethods you can implement currently (dispatching on the scheme)
 
 There are 2 multimethods to implement dispatching on the format string:
 - `serialize`, receives the object, the format string, and options passed to `persist!`, `overwrite!`
-- `deserialize`, receives the serialized byte array, the format string and options passed to `deref`.
+- `deserialize`, receives the serialized byte array, the format string and options passed to `value`.
 
 ## TODO
 
