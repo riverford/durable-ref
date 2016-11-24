@@ -19,7 +19,7 @@
       (cheshire/parse-stream
         rdr
         (:key-fn read-opts identity)
-        (:array-coerce-fn read-opts identity)))))
+        (:array-coerce-fn read-opts (constantly []))))))
 
 (defmethod dref/serialize "json.zip"
   [obj _ opts]
@@ -38,4 +38,4 @@
       (cheshire/parse-stream
         rdr
         (:key-fn read-opts identity)
-        (:array-coerce-fn read-opts identity)))))
+        (:array-coerce-fn read-opts (constantly []))))))

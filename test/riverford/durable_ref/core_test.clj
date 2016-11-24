@@ -110,3 +110,33 @@
     (dref/overwrite! sneaky-ref (UUID/randomUUID))
     (dref/evict! ref)
     (is (thrown? Throwable @ref))))
+
+(deftest test-edn-serialization-round-trips
+  (are [x]
+    (= (dref/deserialize (dref/serialize x "edn" {}) "edn" {}) x)
+    42
+    :fred
+    "ethel"
+    42M
+    42N
+    42.5
+    2/3
+    {:foo :bar}
+    [1 2 3]
+    (range 99)
+    #{1, 2, 3}))
+
+(deftest test-edn-zip-serialization-round-trips
+  (are [x]
+    (= (dref/deserialize (dref/serialize x "edn.zip" {}) "edn.zip" {}) x)
+    42
+    :fred
+    "ethel"
+    42M
+    42N
+    42.5
+    2/3
+    {:foo :bar}
+    [1 2 3]
+    (range 99)
+    #{1, 2, 3}))
