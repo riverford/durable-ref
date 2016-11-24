@@ -5,4 +5,5 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]]
   :profiles {:dev {:dependencies [[org.clojure/data.fressian "0.2.1"]
-                                  [amazonica "0.3.77"]]}})
+                                  [amazonica "0.3.77"]
+                                  [cheshire "5.6.3"]]}})

@@ -1,27 +1,39 @@
 (ns riverford.durable-ref.core
-  "Provides a DurableVolatileRef and DurableValueRef. Both a derefable reference types
-  that refer to clojure data potentially off-heap.
+  "Provides reference types that refer to clojure data potentially off-heap or remotely.
 
-  DurableVolatileRef represents a durable mutable cell. Create with `reference` on a valid URI.
-  DurableValueRef represents a content-addressed durable immutable cell. Create with `persist!` with a valid base-uri
-  and optional format.
+  e.g
+   (let [dref (dref/persist! \"file:///Users/foobar/objects\" 42 {:format \"edn\"})]
+     @dref ;;derefable
+     (dref/reference (uri dref)) ;; reobtain the reference from a URI
+     (dref/deref (uri dref)) ;; alternative deref operator, takes a URI (and additional options)
+    )
 
-  You can refer to a durable ref with the `reference` function,
-  that takes a URI.
+  Reference identity is a URI, the scheme of which determines the type.
+  e.g
+  volatile: mutable, non-cached
+  value: immutable, cached & interned while references exist.
 
-  The uri scheme should follow like so:
-  `mutable-ref:mem://foo/bar/baz.edn`
-  `ref:mem://foo/bar/f79975f99908e5387fca3b503d9e9adbefaafc5e.edn.zip`
+  The subscheme determines the storage implementation
+  e.g
+  file: File system storage
+  mem: Transient memory storage
 
-  Where `mem` is a subscheme that describes how to read and write bytes to a location described by the URI.
-  `mem` & `file` are schemes supported by default. See the scheme.* namespaces for extra schemes.
+  Further storages can be found in the `scheme` package.
+  Extend to new schemes via the multimethods `read-bytes` `write-bytes!` and `delete-bytes!.
 
-  Extend to new sub schemes via read-bytes, write-bytes! and delete-bytes!.
+  The file extension of the uri determines the storage format.
+  e.g
+  edn
+  edn.zip
 
-  Storage format is dispatched from a convention based uri file extension component. (e.g .edn, .edn.zip).
-  Extend to new extensions via serialize and deserialize.
+  Further formats can be found inthe `format` package.
+  Extend to new formats via the multimethods `serialize` and `deserialize`.
 
-  See format.* namespaces for more formats."
+  You can deref data with a URI, (or string uri), or a reference object obtained with `reference`.
+
+  Example URI's:
+  `volatile:mem://foo/bar/baz.edn`
+  `value:file:///Users/foobar/objects/f79975f99908e5387fca3b503d9e9adbefaafc5e.edn.zip`"
   (:refer-clojure :exclude [deref])
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
@@ -357,34 +369,23 @@
   ([base-uri obj]
    (persist! base-uri obj {}))
   ([base-uri obj opts]
-   (let [format (name (or (:format opts) "edn"))
-         base-uri (URI. (str base-uri))
-         scheme (.getScheme base-uri)]
-     (when (nil? (get-method serialize format))
-       (throw (IllegalArgumentException. (clojure.core/format "No serialize impl for format (%s)." format))))
-
-     (when (nil? (get-method read-bytes scheme))
-       (throw (IllegalArgumentException. (clojure.core/format "No read-bytes impl for uri scheme (%s)"
-                                                              scheme))))
-     (when (nil? (get-method write-bytes! scheme))
-       (throw (IllegalArgumentException. (clojure.core/format "No write-bytes! impl for uri scheme (%s)"
-                                                              scheme))))
-     (let [bytes (serialize obj format opts)
-           sha1 (hash-identity bytes)
-           base-uri (str base-uri)
-           uri (URI.
-                 (str/lower-case
-                   (str base-uri
-                        (when-not (str/ends-with? base-uri "/") "/")
-                        (hex-encode sha1)
-                        "."
-                        format)))
-           full-uri (URI. (str "value:" uri))
-           deserialized (deserialize bytes format opts)]
-       (when (not (interned? (value-ref full-uri)))
-         (write-bytes! uri bytes opts))
-       (intern-ref
-         (->DurableValueRef full-uri (if (nil? deserialized) ::nil deserialized)))))))
+   (let [base-uri (str base-uri)
+         format (name (or (:format opts) "edn"))
+         bytes (serialize obj format opts)
+         sha1 (hash-identity bytes)
+         uri (URI.
+               (str/lower-case
+                 (str base-uri
+                      (when-not (str/ends-with? base-uri "/") "/")
+                      (hex-encode sha1)
+                      "."
+                      format)))
+         full-uri (URI. (str "value:" uri))
+         deserialized (deserialize bytes format opts)]
+     (when (not (interned? (value-ref full-uri)))
+       (write-bytes! uri bytes opts))
+     (intern-ref
+       (->DurableValueRef full-uri (if (nil? deserialized) ::nil deserialized))))))
 
 (defn deref
   "Attempts to derefence a durable reference and returns a value.
@@ -421,8 +422,7 @@
 (defmethod write-bytes! "file"
   [^URI uri bytes opts]
   (let [file (io/file uri)]
-    (with-open [os (io/output-stream file)]
-      (io/copy bytes os))))
+    (io/copy bytes file)))
 
 (defmethod read-bytes "file"
   [^URI uri opts]
