@@ -42,6 +42,30 @@
 (defmulti serialize (fn [obj format opts] format))
 (defmulti deserialize (fn [in format opts] format))
 
+(defn get-serializer
+  [^URI uri]
+  (let [sub-uri (URI. (.getSchemeSpecificPart uri))
+        path (.getPath sub-uri)
+        m (dissoc (methods serialize) :default)]
+    (loop [s path]
+      (if-some [idx (some-> s (str/index-of "."))]
+        (let [s (subs s (inc idx))]
+          (or (get m s)
+              (recur s)))
+        (throw (IllegalArgumentException. (clojure.core/format "No serialize impl defined for format %s" s)))))))
+
+(defn get-deserializer
+  [^URI uri]
+  (let [sub-uri (URI. (.getSchemeSpecificPart uri))
+        path (.getPath sub-uri)
+        m (dissoc (methods deserialize) :default)]
+    (loop [s path]
+      (if-some [idx (some-> s (str/index-of "."))]
+        (let [s (subs s (inc idx))]
+          (or (get m s)
+              (recur s)))
+        (throw (IllegalArgumentException. (clojure.core/format "No deserialize impl defined for format %s" s)))))))
+
 (defmethod serialize :default
   [obj format opts]
   (if-some [idx (some-> format (str/index-of "."))]

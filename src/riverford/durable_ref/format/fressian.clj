@@ -6,8 +6,10 @@
            (java.io ByteArrayOutputStream)))
 
 (defn- mapply
-  ([f m]        (apply f (apply concat m)))
-  ([f a & args] (apply f a (apply concat (butlast args) (last args)))))
+  ([f m]
+   (apply f (apply concat m)))
+  ([f a & args]
+   (apply f a (apply concat (butlast args) (last args)))))
 
 (defmethod dref/serialize "fressian"
   [obj _ opts]
