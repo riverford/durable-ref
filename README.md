@@ -1,6 +1,276 @@
 # durable-ref
 
+Provides durable clojure reference types allowing you to reference values
+remotely, or across restarts.
+
+The library currently provides a couple of simple kinds of reference:
+
+- Immutable value references.
+- Mutable (volatile) references.
+
 ## Usage
+
+Available via clojars:
+
+```clojure
+[riverford/durable-ref "0.1.0"]
+```
+
+## Rationale
+
+It is often useful to be able to refer to a value across machines or to preserve
+a reference to a value across restarts and so on.
+
+Often you will see this:
+
+`(put-value! storage k v)`
+
+And later:
+
+`(get-value storage k)`
+
+The problem with this approach as it typically:
+- Doesn't define any properties when referencing the value, e.g can I rely on it being immutable?
+
+- storage and format are often complected together.
+- referencing scheme needs to be known by code that wants to look it up (e.g what is `k`?, do I need an equivalent `storage` instance?)
+
+This library defines an extensible URI based set of conventions that allows different reference
+mechanisms to be implemented on top of the same storages and formats.
+
+Reference a value like this:
+
+`value:s3://my-bucket/my-path/a5e744d0164540d33b1d7ea616c28f2fa97e754a.edn`
+
+Or like this:
+
+`value:file:///Users/me/obj/a5e744d0164540d33b1d7ea616c28f2fa97e754a.json`
+
+Or a volatile (mutable) reference like this:
+
+`volatile:file:///Users/me/people/fred.edn.zip`
+
+This approach conveys several benefits:
+
+- All information required to deref a value is encoded in the reference itself (e.g location, format, path).
+- Storage and format are seperate components to the reference, and can be changed (and extended) independently.
+- Semantics of the reference are encoded in the scheme, allowing one to e.g leverage the persistence/immutablity of the reference
+to e.g cache values pervasively.
+- URI's are shareable, and themselves values. Have an in-memory map reference many enormous data structures but retain the benefits of immutabity of the map only references values.
+
+I hope this library starts the conversation on how durable reference types should be implemented in a consistent way. Such that the references can be shared between programs
+without them having knowledge of one anothers internals.
+
+## A note on performance
+
+Because value references require immutability, programs are able to cache the value of the reference across all instances of that reference.
+
+This is done internally by weak-interning results of `(reference uri)` calls where the uri denotes a value (as opposed to a mutable or ambiguous reference).
+
+This means you can maintain an arbitrary number of aliases of the reference and only pay the cost of deref once (or until all instances of the reference are GC's)
+
+There is no caching of deref results on mutable references.
+
+## Tutorial
+
+The api for references is in the `riverford.durable-ref.core` namespace.
+
+```clojure
+(require '[riverford.durable-ref.core :as dref])
+```
+
+Pick a suitable directory on your machine for storing values. I am going to use `/Users/danielstone/objects`
+
+### Value references
+
+Persist a value (obtaining a reference to it, with `persist`) passing a base-uri (directory)
+object and optional opts (e.g `{:format "json"}`).
+
+```clojure
+(def fred-ref
+ (persist "file:///Users/me/objects"
+  {:name "fred"
+   :age 42}))
+fred-ref
+;; =>
+#object[riverford.durable_ref.core.DurableValueRef
+        "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn"]
+```
+
+Notice the reference URI you get back includes a sha1 identity hash of the object.
+
+references implement `clojure.lang.IDeref`
+
+```clojure
+@fred-ref
+;; =>
+{:name "fred", :age 42}
+```
+
+references can be derefed explicitly, perhaps to signal the fact a deref could fail (due to unavailability of storage)
+
+```clojure
+(dref/deref fred-ref)
+;; =>
+{:name "fred" :age 42}
+```
+
+`deref` also supports additional options (e.g for storage or formats).
+
+You can obtain a URI to the reference
+```clojure
+(dref/uri fred-ref)
+;; =>
+#object[java.net.URI 0x437f6d9e "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn"]
+```
+
+`deref` supports a URI or string directly.
+```clojure
+(dref/deref "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn")
+;; =>
+{:name "fred", :age 42}
+```
+
+Values are cached for value references, and reference instances themselves are weak-interned via
+a WeakHashMap. Repeated `deref`/`persist!` calls on the same value will be very cheap while reference instances are on the heap.
+
+If storage changes, value references will throw on deref.
+
+`reference` reacquires a reference object of the correct type from a URI or string.
+
+```clojure
+(reference "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn")
+;; =>
+#object[riverford.durable_ref.core.DurableValueRef
+        "value:file:///users/danielstone/objects/7664124773263ad3bda79e9267e1793915c09e2d.edn"]
+```
+
+#### Consistency
+
+Even if your storage does not immediately reflect your write, its ok as long as you retain the reference
+returned by `persist`, this is because the value is pre-cached. Due to reference weak-interning, you can alias it
+as a URI or string and as long as the reference hasn't been GC'd, you will continue to see the value.
+
+### Mutable references (volatile)
+
+Rather than using persist!, mutable references are first named explicitly. So decide on an absolute URI.
+
+e.g
+
+`volatile:file:///users/danielstone/objects/fred.edn`
+
+You can `deref` it like normal (even if its never been written to).
+
+```clojure
+(deref "volatile:file:///users/danielstone/objects/fred.edn")
+;; =>
+nil
+```
+
+You can mutate the ref with `overwrite!`
+```clojure
+(overwrite! "volatile:file:///users/danielstone/objects/fred.edn" {:name "fred"})
+;; =>
+nil
+
+;; be aware, that the ability to read immediately
+;; is determined by the consistency properties of your storage
+;; (always assume possibilty of stale values)
+(deref "volatile:file:///users/danielstone/objects/fred.edn")
+;; =>
+{:name "fred"}
+```
+
+You can call `reference` on it to acquire reference object.
+```clojure
+(def fred-mut-ref (reference "volatile:file:///users/danielstone/objects/fred.edn"))
+fred-mut-ref
+;; =>
+#object[riverford.durable_ref.core.DurableVolatileRef "volatile:file:///users/danielstone/objects/fred.edn"]
+```
+
+The reference object implements `clojure.lang.IDeref`
+```clojure
+@fred-mut-ref
+;; =>
+{:name "fred"}
+```
+
+Finally mutable refs can be deleted (when the storage supports it) with `delete!`
+```clojure
+(delete! fred-mut-ref)
+;; =>
+nil
+
+@fred-mut-ref
+;; =>
+nil
+```
+
+## 'Batteries included' storages
+
+### Memory (`mem`)
+
+in-memory storage based on a singleton ConcurrentHashMap.
+
+### File (`file`)
+
+Local disk backed durable storage.
+
+### Amazon S3 (`s3`)
+
+#### using [amazonica](https://github.com/mcohen01/amazonica)
+
+```clojure
+:dependencies [amazonica "0.3.77"]
+(require '[riverford.durable-ref.scheme.s3.amazonica])
+```
+
+## 'Batteries included' formats
+
+### EDN (`edn`, `edn.zip`)
+
+Serialization using `clojure.edn` and `pr`
+
+### Fressian (`fressian`, `fressian.zip`)
+
+Serialization via [data.fressian](https://github.com/clojure/data.fressian)
+
+```clojure
+:dependencies [org.clojure/data.fressian "0.2.1"]
+(require '[riverford.durable-ref.format.fressian])
+```
+
+### Json (`json`)
+
+#### Using [cheshire](https://github.com/dakrone/cheshire)
+
+```clojure
+:dependencies [cheshire "5.6.3"]
+(require '[riverford.durable-ref.format.json.cheshire])
+```
+
+## Extension
+
+### Storage
+
+There are 3 multimethods you can implement currently (dispatching on the scheme):
+- `read-bytes`, receives the uri and options passed to `deref`
+- `write-bytes!`, receives the uri, the serialized byte array and options passed to `persist!`,`overwrite!.`
+- (optional) `delete-bytes!`, receives the uri and options passed to `delete!`.
+
+### Formats
+
+There are 2 multimethods to implement dispatching on the format string:
+- `serialize`, receives the object, the format string, and options passed to `persist!`, `overwrite!`
+- `deserialize`, receives the serialized byte array, the format string and options passed to `deref`.
+
+## TODO
+
+- CAS/Atomic references
+- more formats and storages
+
+Pull requests welcome!
 
 ## License
 
