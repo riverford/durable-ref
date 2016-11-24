@@ -56,7 +56,7 @@ Or a volatile (mutable) reference like this:
 This approach conveys several benefits:
 
 - All information required to deref a value is encoded in the reference itself (e.g location, format, path).
-- Storage and format are seperate components to the reference, and can be changed (and extended) independently.
+- Storage and format are seperate components, independent of reference semantics and can be changed (and extended) independently.
 - Semantics of the reference are encoded in the scheme, allowing one to e.g leverage the persistence/immutablity of the reference
 to e.g cache values pervasively.
 - URI's are shareable, and themselves values. Have an in-memory map reference many enormous data structures but retain the benefits of immutabity of the map only references values.
