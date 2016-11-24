@@ -2,7 +2,7 @@
   "Provides reference types that refer to clojure data potentially off-heap or remotely.
 
   e.g
-   (let [dref (dref/persist! \"file:///Users/foobar/objects\" 42 {:format \"edn\"})]
+   (let [dref (dref/persist \"file:///Users/foobar/objects\" 42 {:format \"edn\"})]
      @dref ;;derefable
      (dref/reference (uri dref)) ;; reobtain the reference from a URI
      (dref/deref (uri dref)) ;; alternative deref operator, takes a URI (and additional options)
@@ -155,7 +155,7 @@
 (deftype DurableVolatileRef [^URI uri]
   IDurableRef
   (-deref [this opts]
-    (when-some [bytes (read-bytes (.getSchemeSpecificPart uri) opts)]
+    (when-some [bytes (read-bytes (URI. (.getSchemeSpecificPart uri)) opts)]
       (deserialize-from bytes uri opts)))
   (-props [this]
     {:uri uri
@@ -363,11 +363,11 @@
          (delete-bytes! uri opts)))
      (recur (reference dref) opts))))
 
-(defn persist!
+(defn persist
   "Persists the obj to a unique location (by value) under `base-uri`.
   Returns a DurableValueRef to the object."
   ([base-uri obj]
-   (persist! base-uri obj {}))
+   (persist base-uri obj {}))
   ([base-uri obj opts]
    (let [base-uri (str base-uri)
          format (name (or (:format opts) "edn"))
@@ -422,14 +422,16 @@
 (defmethod write-bytes! "file"
   [^URI uri bytes opts]
   (let [file (io/file uri)]
+    (.mkdirs (io/file (.getParent file)))
     (io/copy bytes file)))
 
 (defmethod read-bytes "file"
   [^URI uri opts]
   (let [file (io/file uri)
         os (ByteArrayOutputStream.)]
-    (io/copy file os)
-    (.toByteArray os)))
+    (when (.exists file)
+      (io/copy file os)
+      (.toByteArray os))))
 
 (defmethod delete-bytes! "file"
   [^URI uri opts]
