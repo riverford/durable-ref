@@ -19,7 +19,7 @@ Available via clojars:
 ## Rationale
 
 It is often useful to be able to refer to a value across machines or to preserve
-a reference to a value across restarts and so on.
+a reference to a value across restarts and so on. Particularily when the value is large and impractical to convey directly.
 
 Often you will see this:
 
