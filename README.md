@@ -61,7 +61,7 @@ This approach conveys several benefits:
 to e.g cache values pervasively.
 - URI's are shareable, and themselves values. Have an in-memory map reference many enormous data structures but retain the benefits of immutabity of the map only references values.
 
-I hope this library starts the conversation on how durable reference types should be implemented in a consistent way. Such that the references can be shared between programs
+I hope this library starts the conversation on how durable reference types should be implemented in a consistent way. The goal being that the references can be shared between programs
 without them having knowledge of one anothers internals.
 
 ## A note on performance
