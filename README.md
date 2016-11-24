@@ -5,8 +5,8 @@ remotely, or across JVM restarts. With an emphasis on the ability to _share_ the
 
 The library currently provides a couple of simple kinds of reference:
 
-- Immutable value references.
-- Mutable (volatile) references.
+- Value references (immutable).
+- Volatile references (mutable/uncoordinated).
 
 ## Usage
 
