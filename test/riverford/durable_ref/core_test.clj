@@ -111,6 +111,40 @@
     (dref/evict! ref)
     (is (thrown? Throwable @ref))))
 
+(deftest test-ref-eq
+  (are [x y]
+    (= x y)
+    (dref/reference "mem://tests/foo") (dref/reference "mem://tests/foo")
+    (dref/reference "mem://tests/foo") (dref/->DurableReadonlyRef (URI. "mem://tests/foo"))
+    (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" 42)
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "volatile:mem://tests/foo/bar")
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableVolatileRef (URI. "volatile:mem://tests/foo/bar"))))
+
+(deftest test-ref-neq
+  (are [x y]
+    (not= x y)
+    (dref/reference "mem://tests/foo") (dref/reference "mem://tests/foo2")
+    (dref/reference "mem://tests/foo") (dref/->DurableVolatileRef (URI. "mem://tests/foo"))
+    (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" :fred)
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "mem://tests/foo/bar")
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableReadonlyRef (URI. "mem://tests/foo/bar"))))
+
+(deftest test-ref-hash-eq
+  (are [x y]
+    (= (hash x) (hash y))
+    (dref/reference "mem://tests/foo") (dref/reference "mem://tests/foo")
+    (dref/reference "mem://tests/foo") (dref/->DurableReadonlyRef (URI. "mem://tests/foo"))
+    (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" 42)
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "volatile:mem://tests/foo/bar")
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableVolatileRef (URI. "volatile:mem://tests/foo/bar"))))
+
+(deftest test-ref-hash-neq
+  (are [x y]
+    (not= (hash x) (hash y))
+    (dref/reference "mem://tests/foo") (dref/reference "mem://tests/foo2")
+    (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" :fred)
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "mem://tests/foo/bar")))
+
 (deftest test-edn-serialization-round-trips
   (are [x]
     (= (dref/deserialize (dref/serialize x "edn" {}) "edn" {}) x)
