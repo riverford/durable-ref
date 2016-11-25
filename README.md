@@ -111,13 +111,14 @@ Pick a suitable directory on your machine for storing values. I am going to use 
 ### Value references
 
 Obtain a durable reference to a value with `persist`. Passing a base-uri (directory)
-object and optional opts (e.g `{:format "json"}`).
+object and optional opts (e.g `{:format "edn.zip"}`).
 
 ```clojure
 (def fred-ref
- (persist "file:///users/danielstone/objects"
+ (dref/persist "file:///users/danielstone/objects"
   {:name "fred"
    :age 42}))
+
 fred-ref
 ;; =>
 #object[riverford.durable_ref.core.DurableValueRef
@@ -144,7 +145,7 @@ alternatively, references can be derefenced with `value`, perhaps to signal the 
 
 `value` also supports additional options (e.g to forward to storage and format implementations).
 
-You can obtain a URI to the reference
+You can obtain a URI of the reference
 ```clojure
 (dref/uri fred-ref)
 ;; =>
@@ -234,7 +235,7 @@ nil
 nil
 ```
 
-## 'Batteries included' storages
+## Included storages
 
 ### Memory
 
@@ -268,7 +269,7 @@ Scheme: `s3`
 
 ```
 
-## 'Batteries included' formats
+## Included formats
 
 ### EDN
 
