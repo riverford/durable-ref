@@ -138,15 +138,15 @@
 
 (defmethod read-bytes :default
   [uri opts]
-  (throw (IllegalArgumentException. (format "Not a ref scheme %s" (.getScheme uri)))))
+  (throw (IllegalArgumentException. (format "Unknown storage scheme %s" (.getScheme uri)))))
 
 (defmethod write-bytes! :default
   [uri opts bytes]
-  (throw (IllegalArgumentException. (format "Not a writable ref scheme %s" (.getScheme uri)))))
+  (throw (IllegalArgumentException. (format "Not a writable storage scheme %s" (.getScheme uri)))))
 
 (defmethod delete-bytes! :default
   [uri opts]
-  (throw (IllegalArgumentException. (format "Not a deletable ref scheme %s" (.getScheme uri)))))
+  (throw (IllegalArgumentException. (format "Not a deletable storage scheme %s" (.getScheme uri)))))
 
 (defprotocol IDurableRef
   (-deref [this opts])
@@ -272,6 +272,15 @@
 
 (prefer-method print-method riverford.durable_ref.core.IDurableRef IDeref)
 
+(defn uri
+  "Returns the URI of the ref."
+  [dref]
+  (cond
+    (satisfies? IDurableRef dref) (:uri (-props dref))
+    (instance? URI dref) dref
+    (instance? String dref) (URI. dref)
+    :else (throw (IllegalArgumentException. (format "Cannot return uri of %s" (class dref))))))
+
 (def ^:private intern-pool
   (WeakHashMap.))
 
@@ -331,13 +340,6 @@
   [dref]
   (if (satisfies? IDurableRef dref)
     (:read-only? (-props dref))
-    (recur (reference dref))))
-
-(defn uri
-  "Returns the URI of the ref."
-  [dref]
-  (if (satisfies? IDurableRef dref)
-    (:uri (-props dref))
     (recur (reference dref))))
 
 (defn overwrite!
@@ -415,6 +417,7 @@
     (when (satisfies? IDurableCachedRef dref)
       (-evict! dref))
     (evict! (reference dref))))
+
 
 ;; in memory impl
 
