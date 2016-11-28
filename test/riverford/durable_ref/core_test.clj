@@ -118,7 +118,9 @@
     (dref/reference "mem://tests/foo") (dref/->DurableReadonlyRef (URI. "mem://tests/foo"))
     (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" 42)
     (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "volatile:mem://tests/foo/bar")
-    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableVolatileRef (URI. "volatile:mem://tests/foo/bar"))))
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableVolatileRef (URI. "volatile:mem://tests/foo/bar"))
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/reference "atomic:mem://tests/foo/bar")
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/->DurableAtomicRef (URI. "atomic:mem://tests/foo/bar"))))
 
 (deftest test-ref-neq
   (are [x y]
@@ -127,7 +129,11 @@
     (dref/reference "mem://tests/foo") (dref/->DurableVolatileRef (URI. "mem://tests/foo"))
     (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" :fred)
     (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "mem://tests/foo/bar")
-    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableReadonlyRef (URI. "mem://tests/foo/bar"))))
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableReadonlyRef (URI. "mem://tests/foo/bar"))
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/reference "mem://tests/foo/bar")
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/reference "volatile:mem://tests/foo/bar")
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/->DurableReadonlyRef (URI. "mem://tests/foo/bar"))
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/->DurableVolatileRef (URI. "mem://tests/foo/bar"))))
 
 (deftest test-ref-hash-eq
   (are [x y]
@@ -136,14 +142,18 @@
     (dref/reference "mem://tests/foo") (dref/->DurableReadonlyRef (URI. "mem://tests/foo"))
     (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" 42)
     (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "volatile:mem://tests/foo/bar")
-    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableVolatileRef (URI. "volatile:mem://tests/foo/bar"))))
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/->DurableVolatileRef (URI. "volatile:mem://tests/foo/bar"))
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/reference "atomic:mem://tests/foo/bar")
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/->DurableAtomicRef (URI. "atomic:mem://tests/foo/bar"))))
 
 (deftest test-ref-hash-neq
   (are [x y]
     (not= (hash x) (hash y))
     (dref/reference "mem://tests/foo") (dref/reference "mem://tests/foo2")
     (dref/persist "mem://tests/foo" 42) (dref/persist "mem://tests/foo" :fred)
-    (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "mem://tests/foo/bar")))
+    (dref/reference "volatile:mem://tests/foo/bar") (dref/reference "mem://tests/foo/bar")
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/reference "mem://tests/foo/bar")
+    (dref/reference "atomic:mem://tests/foo/bar") (dref/reference "volatile:mem://tests/foo/bar")))
 
 (deftest test-edn-serialization-round-trips
   (are [x]
@@ -174,3 +184,30 @@
     [1 2 3]
     (range 99)
     #{1, 2, 3}))
+
+(deftest test-concurrent-swaps
+  (let [uri (URI. (str "atomic:mem://test/" (UUID/randomUUID) ".edn"))
+        futs (doall (repeatedly 10 #(future
+                                      (dotimes [x 100]
+                                        (Thread/sleep (rand-int 10))
+                                        (dref/atomic-swap! uri (fnil inc 0) {})))))]
+    (run! deref futs)
+    (is (= 1000 (dref/value uri)))
+    (dref/delete! uri)))
+
+(deftest test-atom-interface
+  (let [ref (dref/reference (URI. (str "atomic:mem://test/" (UUID/randomUUID) ".edn")))]
+    (is (nil? @ref))
+    (is (= 42 (reset! ref 42)))
+    (is (= 42 (swap! ref identity)))
+    (is (= 45 (swap! ref + 3)))
+    (is (= 65 (swap! ref + 10 10)))
+    (is (= 95 (swap! ref + 10 10 10)))
+    (is (= 135 (swap! ref + 10 10 10 10)))))
+
+(deftest test-atomic-interface
+  (let [ref (URI. (str "atomic:mem://test/" (UUID/randomUUID) ".edn"))]
+    (is (nil? (dref/value ref)))
+    (is (nil? (dref/overwrite! ref 42)))
+    (is (= 42 (dref/atomic-swap! ref identity)))
+    (is (= 45 (dref/atomic-swap! ref #(+ % 3))))))
