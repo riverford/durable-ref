@@ -99,6 +99,23 @@
       (dref/delete! fred-ref)
       (is (nil? @fred-ref)))))
 
+(deftest test-atomic-ref-tutorial-correct
+  (let [uri "atomic:mem://tmp/fred.edn"
+        fred {:name "fred"}]
+    (dref/delete! uri)
+    (is (nil? (dref/value uri)))
+    (is (= 1 (dref/atomic-swap! uri (fnil inc 0))))
+    (is (= 2 (dref/atomic-swap! uri (fnil inc 0))))
+    (is (nil? (dref/overwrite! uri fred)))
+    (let [fred-ref (dref/reference uri)]
+      (is (instance? riverford.durable_ref.core.DurableAtomicRef fred-ref))
+      (is (satisfies? dref/IDurableRef fred-ref))
+      (is (= fred @fred-ref))
+      (is (= {:name "fred"
+              :age 42}) (swap! fred-ref assoc :age 42))
+      (dref/delete! fred-ref)
+      (is (nil? @fred-ref)))))
+
 (deftest test-value-ref-mutation-attempt-throws
   (let [ref (dref/persist "mem://tests" (UUID/randomUUID))]
     (is (thrown? Throwable (dref/overwrite! ref (UUID/randomUUID))))
