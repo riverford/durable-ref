@@ -1,7 +1,7 @@
 # durable-ref
 
 
-> Call him Voldemort, Harry. Always use the proper name for things. Fear of a name increases fear of the thing itself.”
+> Call him Voldemort, Harry. Always use the proper name for things. Fear of a name increases fear of the thing itself.
 >
 > J.K. Rowling
 
