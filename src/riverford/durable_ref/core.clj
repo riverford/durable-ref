@@ -43,8 +43,7 @@
            (java.security MessageDigest DigestInputStream)
            (javax.xml.bind DatatypeConverter)
            (java.io ByteArrayOutputStream PushbackReader)
-           (java.util.concurrent ConcurrentHashMap)
-           (clojure.lang IDeref)
+           (clojure.lang IDeref IAtom)
            (java.util WeakHashMap)
            (java.lang.ref WeakReference)))
 
@@ -55,26 +54,30 @@
 (defmulti deserialize (fn [in format opts] format))
 
 (defn get-serializer
-  [^URI uri]
-  (let [sub-uri (URI. (.getSchemeSpecificPart uri))
-        path (.getPath sub-uri)
+  [uri]
+  (let [uri (str uri)
+        s (subs uri (str/last-index-of (str uri) "/"))
         m (dissoc (methods serialize) :default)]
-    (loop [s path]
+    (loop [s s]
       (if-some [idx (some-> s (str/index-of "."))]
         (let [s (subs s (inc idx))]
-          (or (get m s)
+          (or (when-some [f (get m s)]
+                (fn [obj opts]
+                  (f obj s opts)))
               (recur s)))
         (throw (IllegalArgumentException. (clojure.core/format "No serialize impl defined for format %s" s)))))))
 
 (defn get-deserializer
-  [^URI uri]
-  (let [sub-uri (URI. (.getSchemeSpecificPart uri))
-        path (.getPath sub-uri)
+  [uri]
+  (let [uri (str uri)
+        s (subs uri (str/last-index-of (str uri) "/"))
         m (dissoc (methods deserialize) :default)]
-    (loop [s path]
+    (loop [s s]
       (if-some [idx (some-> s (str/index-of "."))]
         (let [s (subs s (inc idx))]
-          (or (get m s)
+          (or (when-some [f (get m s)]
+                (fn [obj opts]
+                  (f obj s opts)))
               (recur s)))
         (throw (IllegalArgumentException. (clojure.core/format "No deserialize impl defined for format %s" s)))))))
 
@@ -124,11 +127,11 @@
 
 (defn- serialize-to
   [obj uri opts]
-  (serialize obj (.getPath ^URI uri) opts))
+  ((get-serializer uri) obj opts))
 
 (defn- deserialize-from
-  [obj uri opts]
-  (deserialize obj (.getPath ^URI uri) opts))
+  [bytes uri opts]
+  ((get-deserializer uri) bytes opts))
 
 (defmulti read-bytes (fn [uri opts] (.getScheme ^URI uri)))
 
@@ -136,17 +139,7 @@
 
 (defmulti delete-bytes! (fn [uri opts] (.getScheme ^URI uri)))
 
-(defmethod read-bytes :default
-  [uri opts]
-  (throw (IllegalArgumentException. (format "Unknown storage scheme %s" (.getScheme uri)))))
-
-(defmethod write-bytes! :default
-  [uri opts bytes]
-  (throw (IllegalArgumentException. (format "Not a writable storage scheme %s" (.getScheme uri)))))
-
-(defmethod delete-bytes! :default
-  [uri opts]
-  (throw (IllegalArgumentException. (format "Not a deletable storage scheme %s" (.getScheme uri)))))
+(defmulti do-atomic-swap! (fn [uri f opts] (.getScheme ^URI uri)))
 
 (defprotocol IDurableRef
   (-deref [this opts])
@@ -176,11 +169,45 @@
   (toString [this]
     (str uri)))
 
-(defn- volatile-ref
-  [uri]
-  (let [uri (URI. (str/lower-case (str uri)))]
-    (assert (= "volatile" (.getScheme ^URI uri)) "Invalid URI, scheme must be volatile.")
-    (->DurableVolatileRef uri)))
+(declare atomic-swap!)
+
+(deftype DurableAtomicRef [^URI uri]
+  IDurableRef
+  (-deref [this opts]
+    (let [sub-uri (URI. (.getSchemeSpecificPart uri))]
+      (when-some [bytes (read-bytes sub-uri (assoc opts :consistent? true))]
+        (deserialize-from bytes sub-uri opts))))
+  (-props [this]
+    {:uri uri
+     :atomic? true
+     :read-only? false})
+  IDeref
+  (deref [this]
+    (-deref this {}))
+  IAtom
+  (swap [this f]
+    (atomic-swap! this f))
+  (swap [this f x]
+    (swap! this #(f % x)))
+  (swap [this f x y]
+    (swap! this #(f % x y)))
+  (swap [this f x y args]
+    (swap! this #(apply f % x y args)))
+  (compareAndSet [this x y]
+    (throw (IllegalArgumentException. "Cannot compare and set dref directly, use swap!")))
+  (reset [this o]
+    (write-bytes! (URI. (.getSchemeSpecificPart uri))
+                  (serialize-to o uri {})
+                  {})
+    o)
+  Object
+  (equals [this obj]
+    (and (instance? DurableAtomicRef obj)
+         (= uri (.-uri ^DurableAtomicRef obj))))
+  (hashCode [this]
+    (.hashCode uri))
+  (toString [this]
+    (str uri)))
 
 (defn- hash-identity
   ([x]
@@ -205,17 +232,13 @@
       (some? val) val
       :else (locking this
               (let [sub-uri (URI. (.getSchemeSpecificPart ^URI uri))
-                    path (.getPath sub-uri)
                     bytes (read-bytes sub-uri opts)]
                 (if (nil? bytes)
                   (throw (NullPointerException. "DurableValueRef points to nothing. Storage may have been mutated."))
                   (if (or (not *verify-hash-identity*)
-                          (= (str/lower-case (hex-encode (hash-identity bytes)))
-                             (some-> (str/split path #"/")
-                                     last
-                                     (str/split #"\.")
-                                     first
-                                     str/lower-case)))
+                          (str/includes?
+                            (str uri)
+                            (str/lower-case (hex-encode (hash-identity bytes)))))
                     (let [v (deserialize-from bytes sub-uri opts)]
                       (set! val v)
                       v)
@@ -237,14 +260,6 @@
     (.hashCode uri))
   (toString [this]
     (str uri)))
-
-(defn- value-ref
-  [uri]
-  (let [uri (URI. (str/lower-case (str uri)))]
-    (when (not= "value" (.getScheme ^URI uri))
-      (throw (IllegalArgumentException.
-               (format "Invalid URI, scheme must be value (got %s)" (.getScheme uri)))))
-    (->DurableValueRef uri nil)))
 
 (deftype DurableReadonlyRef [uri]
   IDurableRef
@@ -331,8 +346,9 @@
                                                                  sub-scheme))))
 
         (case scheme
-          "volatile" (volatile-ref uri)
-          "value" (intern-ref (value-ref uri))
+          "volatile" (->DurableVolatileRef uri)
+          "value" (intern-ref (->DurableValueRef uri nil))
+          "atomic" (->DurableAtomicRef uri)
 
           (throw (IllegalArgumentException. (format "Invalid reference scheme %s" scheme))))))))
 
@@ -392,7 +408,7 @@
                       format)))
          full-uri (URI. (str "value:" uri))
          deserialized (deserialize bytes format opts)]
-     (when (not (interned? (value-ref full-uri)))
+     (when (not (interned? (->DurableValueRef full-uri nil)))
        (write-bytes! uri bytes opts))
      (intern-ref
        (->DurableValueRef full-uri (if (nil? deserialized) ::nil deserialized))))))
@@ -418,23 +434,53 @@
       (-evict! dref))
     (evict! (reference dref))))
 
+(defn atomic-swap!
+  "Applies `f` to the value held by the ref atomically."
+  ([dref f]
+   (atomic-swap! dref f {}))
+  ([dref f opts]
+   (let [dref (reference dref)]
+     (when (read-only? dref)
+       (throw (IllegalArgumentException. "Cannot swap readonly ref")))
+     (when-not (:atomic? (-props dref))
+       (throw (IllegalArgumentException. "Cannot swap non-atomic ref")))
+     (let [uri (uri dref)
+           sub-uri (URI. (.getSchemeSpecificPart uri))]
+       (do-atomic-swap! sub-uri f opts)))))
 
 ;; in memory impl
 
 (defonce ^:private mem
-  (ConcurrentHashMap.))
+  (atom {}))
 
 (defmethod write-bytes! "mem"
   [^URI uri bytes opts]
-  (.put mem [(.getHost uri) (.getPath uri)] bytes))
+  (swap! mem assoc [(.getHost uri) (.getPath uri)] bytes)
+  nil)
 
 (defmethod read-bytes "mem"
   [^URI uri opts]
-  (get mem [(.getHost uri) (.getPath uri)]))
+  (get @mem [(.getHost uri) (.getPath uri)]))
 
 (defmethod delete-bytes! "mem"
   [^URI uri opts]
-  (.remove mem [(.getHost uri) (.getPath uri)]))
+  (swap! mem dissoc [(.getHost uri) (.getPath uri)])
+  nil)
+
+(defmethod do-atomic-swap! "mem"
+  [^URI uri f opts]
+  (let [serialize (get-serializer uri)
+        deserialize (get-deserializer uri)]
+    (some-> (swap! mem
+                   update
+                   [(.getHost uri) (.getPath uri)]
+                   (fn [bytes]
+                     (-> (when bytes
+                           (deserialize bytes opts))
+                         f
+                         (serialize opts))))
+            (get [(.getHost uri) (.getPath uri)])
+            (deserialize opts))))
 
 ;; file system impl
 
