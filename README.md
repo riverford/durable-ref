@@ -38,7 +38,7 @@ Begin with the [tutorial](#tutorial)
 - [Memory](#memory) supporting `value`, `volatile`, `atomic`.
 - [File](#file) supporting `value`, `volatile`.
 - [Amazon S3](#amazon-s3) supporting `value`, `volatile`
-- [Amazon DynamoDB](#amazon-dynamodb) supporting `value`, `volatile`
+- [Amazon DynamoDB](#amazon-dynamodb) supporting `value`, `volatile`, `atomic`
 
 ## Provided Formats
 - [EDN](#edn)
