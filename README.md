@@ -343,7 +343,7 @@ e.g `s3://my-bucket/foo/fred.edn`
 
 Supported refs: `value`, `volatile`
 
-S3 is good for value refs, particularily if they are larged and accessed cold infrequently.
+S3 is good for value refs, particularily if they are large and accessed cold infrequently.
 Be aware of its eventual consistency however.
 
 #### using [amazonica](https://github.com/mcohen01/amazonica)
