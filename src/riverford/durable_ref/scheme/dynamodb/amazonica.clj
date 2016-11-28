@@ -32,7 +32,9 @@
       :table-name table
       :item {:id id
              :data bytes}
-      (-> opts :scheme :dynamodb :amazonica :write-opts))))
+      (merge
+        (-> opts :scheme :dynamodb :amazonica :shared-opts)
+        (-> opts :scheme :dynamodb :amazonica :write-opts)))))
 
 (defmethod dref/read-bytes "dynamodb"
   [^URI uri opts]
@@ -42,7 +44,9 @@
                      (-> opts :scheme :dynamodb :amazonica :creds))
               :table-name table
               :key {:id {:s id}}
-              (-> opts :scheme :dynamodb :amazonica :read-opts))
+              (merge
+                (-> opts :scheme :dynamodb :amazonica :shared-opts)
+                (-> opts :scheme :dynamodb :amazonica :read-opts)))
             :item
             :data
             .array)))
@@ -55,7 +59,9 @@
              (-> opts :scheme :dynamodb :amazonica :creds))
       :table-name table
       :key {:id {:s id}}
-      (-> opts :scheme :dynamodb :amazonica :delete-opts))))
+      (merge
+        (-> opts :scheme :dynamodb :amazonica :shared-opts)
+        (-> opts :scheme :dynamodb :amazonica :delete-opts)))))
 
 (defmethod dref/do-atomic-swap! "dynamodb"
   [^URI uri f opts]
@@ -70,7 +76,9 @@
                     :table-name table
                     :key {:id {:s id}}
                     :consistent-read true
-                    (-> opts :scheme :dynamodb :amazonica :read-opts))
+                    (merge
+                      (-> opts :scheme :dynamodb :amazonica :shared-opts)
+                      (-> opts :scheme :dynamodb :amazonica :read-opts)))
               item (:item ret)
               obj (some-> item :data .array (deserialize opts))
               newobj (f obj)
@@ -88,7 +96,9 @@
                          :version (inc version)}
                   :condition-expression "attribute_not_exists(version) OR (version = :version)"
                   :expression-attribute-values {":version" {:n version}}
-                  (-> opts :scheme :dynamodb :amazonica :write-opts)))
+                  (merge
+                    (-> opts :scheme :dynamodb :amazonica :shared-opts)
+                    (-> opts :scheme :dynamodb :amazonica :write-opts))))
               newobj
               (catch ConditionalCheckFailedException e
                 (when-some [cas-backoff-fn (-> opts :scheme :dynamodb :amazonica :cas-back-off-fn)]

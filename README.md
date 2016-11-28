@@ -15,7 +15,7 @@ Places a heavy emphasis on the ability to _share_ references.
 Available via clojars:
 
 ```clojure
-[riverford/durable-ref "0.1.0"]
+[riverford/durable-ref "0.1.1"]
 ```
 
 Begin with the [tutorial](#tutorial)
@@ -26,14 +26,19 @@ Begin with the [tutorial](#tutorial)
 
   An immutable weakly interned, caching reference.
 
+- [Atomic reference](#atomic-references)
+
+  A `clojure.lang.Atom` like reference, for safe concurrent updates.
+
 - [Volatile reference](#volatile-references)
 
-  A stable mutable reference, uncoordinated.
+  A basic mutable reference, concurrent updates are unsafe.
 
 ## Provided Storages
-- [Memory](#memory)
-- [File](#file)
-- [Amazon S3](#amazon-s3)
+- [Memory](#memory) supporting `value`, `volatile`, `atomic`.
+- [File](#file) supporting `value`, `volatile`.
+- [Amazon S3](#amazon-s3) supporting `value`, `volatile`
+- [Amazon DynamoDB](#amazon-dynamodb) supporting `value`, `volatile`
 
 ## Provided Formats
 - [EDN](#edn)
@@ -179,15 +184,85 @@ Even if your storage does not immediately reflect your write, its ok as long as 
 returned by `persist`, this is because the value is pre-cached. Due to reference weak-interning, you can alias it
 as a URI or string and as long as the reference hasn't been GC'd, you will continue to see the value.
 
+### Atomic references
+
+First, decide on a global URI for your mutable reference.
+I will use a temporary in memory reference to keep the tutorial simple.
+
+`atomic:mem://tmp/fred.edn`
+
+You can call `value` on it (even if its never been written to).
+
+```clojure
+(dref/value "atomic:mem://tmp/fred.edn")
+;; =>
+nil
+```
+
+You can mutate the ref by applying a function with `atomic-swap!`. The function will be applied atomically, and
+ref will assume the result as the new value.
+
+The swap function like `swap!` on an atom, will return the result of applying the function.
+
+```clojure
+(dref/atomic-swap! "atomic:mem://tmp/fred.edn" (fnil inc 0))
+;; =>
+1
+(dref/atomic-swap! "atomic:mem://tmp/fred.edn" (fnil inc 0))
+;; =>
+2
+```
+
+You can mutate (ignoring any existing value) the ref with `overwrite!`
+
+```clojure
+(dref/overwrite! "atomic:mem://tmp/fred.edn" {:name "fred"})
+;; =>
+nil
+```
+
+You can call `reference` on a URI or string to acquire atomic reference object
+```clojure
+(def fred-atom-ref (dref/reference "atomic:mem://tmp/fred.edn"))
+fred-atom-ref
+;; =>
+#object[riverford.durable_ref.core.DurableAtomicRef "atomic:mem://tmp/fred.edn"]
+```
+
+All reference objects implement `clojure.lang.IDeref`
+```clojure
+@fred-atom-ref
+;; =>
+{:name "fred"}
+```
+
+Atomic references implement `clojure.lang.IAtom`
+```clojure
+(swap! fred-atom-ref assoc :age 42)
+;; =>
+{:name "fred", :age 42}
+```
+
+
+Finally the ref can be deleted (when the storage supports it) with `delete!`
+```clojure
+(dref/delete! fred-atom-ref)
+;; =>
+nil
+
+@fred-atom-ref
+;; =>
+nil
+```
+
+
 ### Volatile references
 
-Rather than using persist!, mutable references are first named explicitly. So decide on an absolute URI.
-
-e.g
+Like `atomic` references, first decide on an appropriate name for your volatile reference.
 
 `volatile:file:///users/danielstone/objects/fred.edn`
 
-You can `value` it like normal (even if its never been written to).
+You can call `value` on it (even if its never been written to).
 
 ```clojure
 (dref/value "volatile:file:///users/danielstone/objects/fred.edn")
@@ -240,18 +315,21 @@ nil
 ### Memory
 
 Scheme: `mem`
+Supported refs: `value`, `volatile`, `atomic`
 
-in-memory storage based on a global ConcurrentHashMap. Useful for testing.
+Transient in-memory storage. Useful for testing. I would not recommend using it in production.
 
 ### File
 
 Scheme: `file`
+Supported refs: `value`, `volatile`
 
 Local disk backed durable storage.
 
 ### Amazon S3
 
 Scheme: `s3`
+Supported refs: `value`, `volatile`
 
 #### using [amazonica](https://github.com/mcohen01/amazonica)
 
@@ -266,6 +344,33 @@ Scheme: `s3`
                           :write-opts {} ;; spliced into put-object requests
                           :delete-opts {} ;; spliced into delete-object requests
                           }}}}
+
+```
+
+### Amazon DynamoDB
+
+Scheme: `dynamodb`
+Supported refs: `value`, `volatile`, `atomic`
+
+#### using [amazonica](https://github.com/mcohen01/amazonica)
+
+```clojure
+:dependencies [amazonica "0.3.77"]
+(require '[riverford.durable-ref.scheme.dynamodb.amazonica])
+
+;; Storage options (optionally provide in an options map to persist, value, overwrite!, delete!, atomic-swap!)
+;; see amazonica documentation for more information
+{:scheme {:dynamodb {:amazonica {:shared-opts {} ;; spliced into all amazonica requests
+                                 :read-opts {}  ;; spliced into get-item requests
+                                 :write-opts {} ;; spliced into put-item requests
+                                 :delete-opts {} ;; spliced into delete-item requests
+                                 :creds {} ;; use if you want to override your access credentials
+
+                                 :cas-back-off-fn (fn [uri n])
+                                 ;; a callback function called on conditional put failure.
+                                 ;; Receives the uri and current number of CAS iterations performed
+                                 ;; Use to implement things like back-off.
+                                 }}}}
 
 ```
 
@@ -321,6 +426,7 @@ There are 3 multimethods you can implement currently (dispatching on the scheme)
 - `read-bytes`, receives the uri and options passed to `value`. Returns a byte array or nil.
 - `write-bytes!`, receives the uri, the serialized byte array and options passed to `persist!`,`overwrite!.`
 - (optional) `delete-bytes!`, receives the uri and options passed to `delete!`.
+- (optional) `do-atomic-swap!`, receives the uri, function and options passed to `atomic-swap!`.
 
 ### Formats
 
@@ -330,7 +436,6 @@ There are 2 multimethods to implement dispatching on the format string:
 
 ## TODO
 
-- CAS/Atomic references
 - more formats and storages
 
 Pull requests welcome!
