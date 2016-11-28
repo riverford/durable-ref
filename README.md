@@ -315,6 +315,10 @@ nil
 ### Memory
 
 Scheme: `mem`
+
+URI convention: `mem://{path-a}/{path-b ...}/{id}.{ext}`
+e.g `mem://testing/fred.edn`
+
 Supported refs: `value`, `volatile`, `atomic`
 
 Transient in-memory storage. Useful for testing. I would not recommend using it in production.
@@ -322,14 +326,25 @@ Transient in-memory storage. Useful for testing. I would not recommend using it 
 ### File
 
 Scheme: `file`
+
+URI convention: `file:///{folder-a}/{folder-b ...}/{id}.{extension}`
+e.g `file:///Users/me/foo/fred.edn`
+
 Supported refs: `value`, `volatile`
 
-Local disk backed durable storage.
+Local disk backed storage.
 
 ### Amazon S3
 
 Scheme: `s3`
+
+URI convention: `s3://{bucket}/{folder-a}/{folder-b ...}/{id}.{extension}`
+e.g `s3://my-bucket/foo/fred.edn`
+
 Supported refs: `value`, `volatile`
+
+S3 is good for value refs, particularily if they are larged and accessed cold infrequently.
+Be aware of its eventual consistency however.
 
 #### using [amazonica](https://github.com/mcohen01/amazonica)
 
@@ -350,7 +365,14 @@ Supported refs: `value`, `volatile`
 ### Amazon DynamoDB
 
 Scheme: `dynamodb`
+
+URI convention: `dynamodb:http://dynamodb.{region}.amazonaws.com/{table}/{id}.{extension}`
+e.g `dynamodb:http://dynamodb.eu-west-1.amazonaws.com/my-table/fred.edn`
+
 Supported refs: `value`, `volatile`, `atomic`
+
+Does not work with arbitrary tables, requires a table with a single string hash-key `id`.
+Will use column `data` to store serialized objects. The column `version` is used to implement conditional puts.
 
 #### using [amazonica](https://github.com/mcohen01/amazonica)
 
