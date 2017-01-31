@@ -10,7 +10,7 @@ Provides durable clojure reference types where the values are not always local t
 
 Places a heavy emphasis on the ability to _share_ references.
 
-Heavily inspired by Rich Hickey's talk [The Language of the System](https://www.youtube.com/watch?v=ROor6_NGIWU): 
+Heavily inspired by Rich Hickey's talk [The Language of the System](https://www.youtube.com/watch?v=ROor6_NGIWU). 
 
 ## Usage
 
