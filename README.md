@@ -2,7 +2,7 @@
 
 Provides durable clojure reference types where the values are not always local to the program.
 
-Places an emphasis on the ability to _share_ references to values, conveying them directly requiring no out-of-bound knowledge.
+Places an emphasis on the ability to _share_ references to values, conveying them directly requiring no out-of-band knowledge.
 
 Heavily inspired by Rich Hickey's talk [The Language of the System](https://www.youtube.com/watch?v=ROor6_NGIWU). 
 
