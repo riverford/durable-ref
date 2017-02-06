@@ -1,14 +1,10 @@
 # durable-ref
 
-
-> Call him Voldemort, Harry. Always use the proper name for things. Fear of a name increases fear of the thing itself.
->
-> J.K. Rowling
-
-
 Provides durable clojure reference types where the values are not always local to the program.
 
-Places a heavy emphasis on the ability to _share_ references.
+Places an emphasis on the ability to _share_ references to values between programs.
+
+Heavily inspired by Rich Hickey's talk [The Language of the System](https://www.youtube.com/watch?v=ROor6_NGIWU). 
 
 ## Usage
 
@@ -28,7 +24,7 @@ Begin with the [tutorial](#tutorial)
 
 - [Atomic reference](#atomic-references)
 
-  A `clojure.lang.Atom` like reference, for safe concurrent updates.
+  A `clojure.lang.Atom` style coordinated reference, for safe concurrent updates.
 
 - [Volatile reference](#volatile-references)
 
