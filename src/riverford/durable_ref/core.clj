@@ -453,14 +453,20 @@
 (defonce ^:private mem
   (atom {}))
 
+(defn- mematom
+  [k]
+  (or (get @mem k)
+      (-> (swap! mem update k (fn [a] (if a a (atom nil))))
+          (get k))))
+
 (defmethod write-bytes! "mem"
   [^URI uri bytes opts]
-  (swap! mem assoc [(.getHost uri) (.getPath uri)] bytes)
+  (reset! (mematom [(.getHost uri) (.getPath uri)]) bytes)
   nil)
 
 (defmethod read-bytes "mem"
   [^URI uri opts]
-  (get @mem [(.getHost uri) (.getPath uri)]))
+  (some-> @mem (get [(.getHost uri) (.getPath uri)]) clojure.core/deref))
 
 (defmethod delete-bytes! "mem"
   [^URI uri opts]
@@ -471,15 +477,12 @@
   [^URI uri f opts]
   (let [serialize (get-serializer uri)
         deserialize (get-deserializer uri)]
-    (some-> (swap! mem
-                   update
-                   [(.getHost uri) (.getPath uri)]
+    (some-> (swap! (mematom [(.getHost uri) (.getPath uri)])
                    (fn [bytes]
                      (-> (when bytes
                            (deserialize bytes opts))
                          f
                          (serialize opts))))
-            (get [(.getHost uri) (.getPath uri)])
             (deserialize opts))))
 
 ;; file system impl
