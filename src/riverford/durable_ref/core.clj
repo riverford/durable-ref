@@ -391,12 +391,20 @@
 
 (defn persist
   "Persists the obj to a unique location (by value) under `base-uri`.
-  Returns a DurableValueRef to the object."
+  Returns a DurableValueRef to the object.
+
+  The format of the returned ref will be determined by the `:as` option (edn by default)."
   ([base-uri obj]
    (persist base-uri obj {}))
   ([base-uri obj opts]
    (let [base-uri (str base-uri)
-         format (name (or (:format opts) "edn"))
+         format
+         ;; backwards compat hack, :format is also used to specify :format opts. Prefer the :as kw.
+         (let [f (:format opts)]
+           (if (or (string? f) (keyword? f))
+             (name f)
+             (let [fmt (or (:as opts) "edn")]
+               (name fmt))))
          bytes (serialize obj format opts)
          sha1 (hash-identity bytes)
          uri (URI.

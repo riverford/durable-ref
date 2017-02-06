@@ -11,7 +11,7 @@ Heavily inspired by Rich Hickey's talk [The Language of the System](https://www.
 Available via clojars:
 
 ```clojure
-[riverford/durable-ref "0.1.1"]
+[riverford/durable-ref "0.1.2"]
 ```
 
 Begin with the [tutorial](#tutorial)
@@ -113,7 +113,7 @@ Pick a suitable directory on your machine for storing values. I am going to use 
 ### Value references
 
 Obtain a durable reference to a value with `persist`. Passing a base-uri (directory)
-object and optional opts (e.g `{:format "edn.zip"}`).
+object and optional opts (e.g `{:as "edn.zip"}`).
 
 ```clojure
 (def fred-ref
