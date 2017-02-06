@@ -40,6 +40,7 @@ Begin with the [tutorial](#tutorial)
 - [EDN](#edn)
 - [Fressian](#fressian)
 - [Json](#json)
+- [Nippy](#nippy)
 
 ## Rationale
 
@@ -162,6 +163,9 @@ Most ref operations such as `value` support using a URI or string directly.
 
 Values are cached for value references, and reference instances themselves are weak-interned via
 a WeakHashMap. Repeated `value`/`persist!` calls on the same value will be very cheap while reference instances are on the heap.
+
+If you want to evict a cached value in a ref, use `evict!`.
+
 
 If storage changes, value references will throw on deref.
 
@@ -434,6 +438,23 @@ Extensions (`json`, `json.zip`)
                                :key-fn f1 ;; passed as the `key-fn` arg to parse-stream calls
                                :array-coerce-fn f2 ;; passed as the `array-coerce-fn` to parse-stream calls
                               }}}}}
+```
+
+### Nippy
+
+Extensions (`nippy`)
+
+#### Using [nippy](https://github.com/ptaoussanis/nippy)
+
+```clojure
+:dependencies [com.taoensso/nippy "2.12.2"]
+(require '[riverford.durable-ref.format.nippy])
+
+;; Format options (optionally provide in an options map to persist, value, overwrite!, delete!)
+;; see cheshire docs for more details
+{:format {:nippy {:write-opts {} ;; passed as options to freeze calls
+                  :read-opts {} ;; passed as options to thaw calls
+                 }}
 ```
 
 ## Extension
