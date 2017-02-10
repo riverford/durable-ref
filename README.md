@@ -31,13 +31,21 @@ Begin with the [tutorial](#tutorial)
   A basic mutable reference, concurrent updates are unsafe.
 
 ## Provided Storages
+
 - [Memory](#memory) supporting `value`, `volatile`, `atomic`.
 - [File](#file) supporting `value`, `volatile`.
+
+Available by `require`ing the appropriate `riverford.durable-ref.scheme` namespace, see each section for details.
+
 - [Amazon S3](#amazon-s3) supporting `value`, `volatile`
 - [Amazon DynamoDB](#amazon-dynamodb) supporting `value`, `volatile`, `atomic`
 
 ## Provided Formats
+
 - [EDN](#edn)
+
+Available by `require`ing the appropriate `riverford.durable-ref.format` namespace, see each section for details.
+
 - [Fressian](#fressian)
 - [Json](#json)
 - [Nippy](#nippy)
