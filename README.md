@@ -459,7 +459,7 @@ Extensions (`nippy`)
 (require '[riverford.durable-ref.format.nippy])
 
 ;; Format options (optionally provide in an options map to persist, value, overwrite!, delete!)
-;; see cheshire docs for more details
+;; see nippy docs for more details
 {:format {:nippy {:write-opts {} ;; passed as options to freeze calls
                   :read-opts {} ;; passed as options to thaw calls
                  }}
