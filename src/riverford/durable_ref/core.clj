@@ -2,7 +2,7 @@
   "Provides reference types that refer to clojure data potentially off-heap or remotely.
 
   e.g
-   (let [dref (dref/persist \"file:///Users/foobar/objects\" 42 {:format \"edn\"})]
+   (let [dref (dref/persist \"file:///Users/foobar/objects\" 42 {:as \"edn\"})]
      @dref ;;derefable
      (dref/reference (uri dref)) ;; reobtain the reference from a URI
      (dref/value (uri dref)) ;; alternative deref operator, takes a URI (and additional options)
