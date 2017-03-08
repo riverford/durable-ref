@@ -276,7 +276,7 @@
   (::origin (meta x)))
 
 (defn existing-ref
-  "If an existing, realized reference can be be found for an identical object, it will be returned."
+  "If an existing, realized reference can be be found in memory for an identical object, it will be returned."
   [obj]
   (when-some [dref (origin obj)]
     (when (and (instance? DurableValueRef dref)
