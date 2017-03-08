@@ -43,7 +43,7 @@
            (java.security MessageDigest DigestInputStream)
            (javax.xml.bind DatatypeConverter)
            (java.io ByteArrayOutputStream PushbackReader)
-           (clojure.lang IDeref IAtom IObj)
+           (clojure.lang IDeref IAtom IObj IPending)
            (java.util WeakHashMap)
            (java.lang.ref WeakReference)))
 
@@ -259,6 +259,9 @@
   IDeref
   (deref [this]
     (-deref this {}))
+  IPending
+  (isRealized [this]
+    (some? valref))
   Object
   (equals [this obj]
     (and (instance? DurableValueRef obj)
@@ -272,13 +275,14 @@
   [x]
   (::origin (meta x)))
 
-(defn- existing-ref
+(defn existing-ref
+  "If an existing, realized reference can be be found for an identical object, it will be returned."
   [obj]
   (when-some [dref (origin obj)]
     (when (and (instance? DurableValueRef dref)
-               (:realized? (-props dref))
+               (realized? dref)
                ;; we cannot use opts here, we don't know how it was saved.
-               (identical? (-deref dref {}) obj))
+               (identical? @dref obj))
       dref)))
 
 (deftype DurableReadonlyRef [uri]
@@ -449,16 +453,6 @@
                  deserialized)]
          (vreset! vbox v)
          r)))))
-
-(defn value-ref
-  "Returns a value reference to the object. Like `persist`, but will return an existing reference
-  to the object if one is available. If one is not available, then the object will be persisted as
-  if a `persist` call was made."
-  ([base-uri obj]
-    (value-ref base-uri obj {}))
-  ([base-uri obj opts]
-   (or (existing-ref obj)
-       (persist base-uri obj opts))))
 
 (defn value
   "Attempts to derefence a durable reference and returns a value.
