@@ -112,7 +112,8 @@
       (is (satisfies? dref/IDurableRef fred-ref))
       (is (= fred @fred-ref))
       (is (= {:name "fred"
-              :age 42}) (swap! fred-ref assoc :age 42))
+              :age 42}
+             (swap! fred-ref assoc :age 42)))
       (dref/delete! fred-ref)
       (is (nil? @fred-ref)))))
 
