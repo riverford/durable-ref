@@ -43,7 +43,7 @@
            (java.security MessageDigest DigestInputStream)
            (javax.xml.bind DatatypeConverter)
            (java.io ByteArrayOutputStream PushbackReader)
-           (clojure.lang IDeref IAtom)
+           (clojure.lang IDeref IAtom IObj)
            (java.util WeakHashMap)
            (java.lang.ref WeakReference)))
 
@@ -239,9 +239,15 @@
                           (str/includes?
                             (str uri)
                             (str/lower-case (hex-encode (hash-identity bytes)))))
-                    (let [v (deserialize-from bytes sub-uri opts)]
-                      (set! val v)
-                      v)
+                    (let [v (deserialize-from bytes sub-uri opts)
+                          ;; if the value supports meta, we can keep the ref alive.
+                          ;; as well as this this, allows for efficient persist calls, when an alternative reference
+                          ;; exists
+                          v' (if (instance? IObj v)
+                               (with-meta v {::origin this})
+                               v)]
+                      (set! val v')
+                      v')
                     (throw (IllegalStateException. "DurableValueRef checksum mismatch. Storage may have been mutated."))))))))
   (-props [this]
     {:uri uri
@@ -260,6 +266,17 @@
     (.hashCode uri))
   (toString [this]
     (str uri)))
+
+(defn- origin
+  [x]
+  (::origin (meta x)))
+
+(defn- existing-ref
+  [obj]
+  (when-some [dref (origin obj)]
+    (when (and (instance? DurableValueRef dref)
+               (identical? (.-val ^DurableValueRef dref) obj))
+      dref)))
 
 (deftype DurableReadonlyRef [uri]
   IDurableRef
@@ -421,12 +438,22 @@
      (intern-ref
        (->DurableValueRef full-uri (if (nil? deserialized) ::nil deserialized))))))
 
+(defn value-ref
+  "Returns a value reference to the object. Like `persist`, but will return an existing reference
+  to the object if one is available. If one is not available, then the object will be persisted as
+  if a `persist` call was made."
+  ([base-uri obj]
+    (value-ref base-uri obj {}))
+  ([base-uri obj opts]
+   (or (existing-ref obj)
+       (persist base-uri obj opts))))
+
 (defn value
   "Attempts to derefence a durable reference and returns a value.
   dref can be a anything accepted by `reference`.
 
   May throw an error if in the case of a value ref, storage has been mutated.
-   (override with the *verify-hash-identity* var), it may also throw in general if storage is unavailable or crashes for whatever reason."
+  (override with the *verify-hash-identity* var), it may also throw in general if storage is unavailable or crashes for whatever reason."
   ([dref]
    (value dref {}))
   ([dref opts]
