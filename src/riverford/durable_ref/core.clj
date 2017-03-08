@@ -224,12 +224,11 @@
 (def ^:dynamic *verify-hash-identity*
   true)
 
-(deftype DurableValueRef [uri ^:volatile-mutable val]
+(deftype DurableValueRef [uri ^:volatile-mutable valref]
   IDurableRef
   (-deref [this opts]
     (cond
-      (= ::nil val) nil
-      (some? val) val
+      (some? valref) @valref
       :else (locking this
               (let [sub-uri (URI. (.getSchemeSpecificPart ^URI uri))
                     bytes (read-bytes sub-uri opts)]
@@ -243,18 +242,20 @@
                           ;; if the value supports meta, we can keep the ref alive.
                           ;; as well as this this, allows for efficient persist calls, when an alternative reference
                           ;; exists
+                          _ (prn v)
                           v' (if (instance? IObj v)
                                (with-meta v {::origin this})
                                v)]
-                      (set! val v')
+                      (set! valref (volatile! v'))
                       v')
                     (throw (IllegalStateException. "DurableValueRef checksum mismatch. Storage may have been mutated."))))))))
   (-props [this]
     {:uri uri
+     :realized? (some? valref)
      :read-only? true})
   IDurableCachedRef
   (-evict! [this]
-    (set! val nil))
+    (set! valref nil))
   IDeref
   (deref [this]
     (-deref this {}))
@@ -275,7 +276,9 @@
   [obj]
   (when-some [dref (origin obj)]
     (when (and (instance? DurableValueRef dref)
-               (identical? (.-val ^DurableValueRef dref) obj))
+               (:realized? (-props dref))
+               ;; we cannot use opts here, we don't know how it was saved.
+               (identical? (-deref dref {}) obj))
       dref)))
 
 (deftype DurableReadonlyRef [uri]
@@ -300,7 +303,10 @@
 
 (defmethod print-method riverford.durable_ref.core.IDurableRef
   [o w]
-  (.write w (str "#object [" (.getName (class o)) " \"" o "\"]")))
+  (.write w (str "#object ["
+                 (.getName (class o)) " "
+                 (format "0x%x" (System/identityHashCode o))
+                 " \"" o "\"]")))
 
 (prefer-method print-method riverford.durable_ref.core.IDurableRef IDeref)
 
@@ -436,7 +442,13 @@
      (when (not (interned? (->DurableValueRef full-uri nil)))
        (write-bytes! uri bytes opts))
      (intern-ref
-       (->DurableValueRef full-uri (if (nil? deserialized) ::nil deserialized))))))
+       (let [vbox (volatile! nil)
+             r (->DurableValueRef full-uri vbox)
+             v (if (instance? IObj deserialized)
+                 (with-meta deserialized {::origin r})
+                 deserialized)]
+         (vreset! vbox v)
+         r)))))
 
 (defn value-ref
   "Returns a value reference to the object. Like `persist`, but will return an existing reference
