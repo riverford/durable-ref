@@ -3,7 +3,7 @@
 
   e.g
    (let [dref (dref/persist \"file:///Users/foobar/objects\" 42 {:as \"edn\"})]
-     @dref ;;derefable
+     @dref ;; derefable
      (dref/reference (uri dref)) ;; reobtain the reference from a URI
      (dref/value (uri dref)) ;; alternative deref operator, takes a URI (and additional options)
     )
@@ -239,10 +239,6 @@
                             (str uri)
                             (str/lower-case (hex-encode (hash-identity bytes)))))
                     (let [v (deserialize-from bytes sub-uri opts)
-                          ;; if the value supports meta, we can keep the ref alive.
-                          ;; as well as this this, allows for efficient persist calls, when an alternative reference
-                          ;; exists
-                          _ (prn v)
                           v' (if (instance? IObj v)
                                (with-meta v {::origin this})
                                v)]
