@@ -127,7 +127,9 @@
 
 (defn- serialize-to
   [obj uri opts]
-  ((get-serializer uri) obj opts))
+  (if (and (instance? IObj obj) (seq (meta obj)))
+    (recur (with-meta obj {}) uri opts)
+    ((get-serializer uri) obj opts)))
 
 (defn- deserialize-from
   [bytes uri opts]
@@ -222,7 +224,7 @@
   (DatatypeConverter/printHexBinary bytes))
 
 (def ^:dynamic *verify-hash-identity*
-  true)
+  false)
 
 (deftype DurableValueRef [uri ^:volatile-mutable valref]
   IDurableRef
