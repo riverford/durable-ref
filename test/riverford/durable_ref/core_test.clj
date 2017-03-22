@@ -127,7 +127,7 @@
         sneaky-ref (dref/reference (str "volatile:" (.getSchemeSpecificPart (dref/uri ref))))]
     (dref/overwrite! sneaky-ref (UUID/randomUUID))
     (dref/evict! ref)
-    (is (thrown? Throwable @ref))))
+    (is (thrown? Throwable (binding [dref/*verify-hash-identity* true] @ref)))))
 
 (deftest test-ref-eq
   (are [x y]
