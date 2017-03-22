@@ -430,7 +430,8 @@
              (name f)
              (let [fmt (or (:as opts) "edn")]
                (name fmt))))
-         bytes (serialize obj format opts)
+         obj' (if (instance? IObj obj) (with-meta obj {}) obj)
+         bytes (serialize obj' format opts)
          sha1 (hash-identity bytes)
          uri (URI.
                (str/lower-case
