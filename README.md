@@ -469,7 +469,7 @@ Extensions (`nippy`)
 
 ### Storage
 
-There are 3 multimethods you can implement currently (dispatching on the scheme):
+These are the storage multimethods you can implement currently (dispatching on the scheme):
 - `read-bytes`, receives the uri and options passed to `value`. Returns a byte array or nil.
 - `write-bytes!`, receives the uri, the serialized byte array and options passed to `persist!`,`overwrite!.`
 - (optional) `delete-bytes!`, receives the uri and options passed to `delete!`.
@@ -477,7 +477,7 @@ There are 3 multimethods you can implement currently (dispatching on the scheme)
 
 ### Formats
 
-There are 2 multimethods to implement dispatching on the format string:
+These are the format multimethods you can implement currently (dispatching on the scheme):
 - `serialize`, receives the object, the format string, and options passed to `persist!`, `overwrite!`
 - `deserialize`, receives the serialized byte array, the format string and options passed to `value`.
 
