@@ -9,4 +9,5 @@
   :profiles {:dev {:dependencies [[org.clojure/data.fressian "0.2.1"]
                                   [amazonica "0.3.77"]
                                   [cheshire "5.6.3"]
-                                  [com.taoensso/nippy "2.12.2"]]}})
+                                  [com.taoensso/nippy "2.13.0"]
+                                  [com.taoensso/carmine "2.16.0"]]}})
