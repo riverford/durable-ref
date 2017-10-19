@@ -20,7 +20,20 @@
 
   atomic:redis:tcp://localhost:6379/0/atoms/a2-ref.edn
 
-  inserts another entry in the top-level atoms key in Redis, and so on."
+  inserts another entry in the top-level atoms key in Redis, and so on.
+
+  To be able to use Clojure's reference type interfaces you can add the Redis credentials
+  using `add-credentials!`, and remove them again when no longer needed with `remove-credentials!`.
+  Example, with Redis password \"foobar\":
+
+  `(add-credentials! \"localhost\" 6379 \"foobar\")`
+  `(def ref-1 (dref/reference \"atomic:redis:tcp://localhost:6379/0/ref-1.edn\"))`
+  `@ref-1 ;=> nil`
+  `(reset! ref-1 {:foo #{:a :b}})`
+  `@ref-1 ;=> {:foo #{:a :b}}`
+  `(swap! ref-1 assoc :bar 42)`
+  `@ref-1 ;=> {:foo #{:a :b} :bar 42}`
+  "
   (:require
     [clojure.edn :as edn]
     [clojure.string :as str]
