@@ -11,17 +11,6 @@
 
   atomic:redis:tcp://localhost:6379/0/atom-ref.edn
 
-  Keys can be namespaced further, e.g.
-
-  atomic:redis:tcp://localhost:6379/0/atoms/a1-ref.edn
-
-  This results in the top-level atoms key in Redis being a hash map with a single
-  entry a1-ref.edn. A second ref,
-
-  atomic:redis:tcp://localhost:6379/0/atoms/a2-ref.edn
-
-  inserts another entry in the top-level atoms key in Redis, and so on.
-
   To be able to use Clojure's reference type interfaces you can add the Redis credentials
   using `add-credentials!`, and remove them again when no longer needed with `remove-credentials!`.
   Example, with Redis password \"foobar\":
@@ -72,10 +61,9 @@
   [^URI uri]
   (let [sub-uri (URI. (.getSchemeSpecificPart uri))
         path (.getPath sub-uri)
-        [_ db id-or-ns ?id] (str/split path #"/")]
+        [_ db id] (str/split path #"/")]
     [(edn/read-string db)
-     (when ?id id-or-ns)
-     (or ?id id-or-ns)]))
+     id]))
 
 (defn- get-credentials
   [opts connection]
@@ -90,63 +78,50 @@
   [^URI uri bytes opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
-        [db ?f k] (location uri)]
+        [db k] (location uri)]
     (car/wcar (-> connection
                   (assoc-in [:spec :password] (or (:password credentials) ""))
                   (assoc-in [:spec :db] db))
-              (if ?f
-                (car/hset ?f k bytes)
-                (car/set k bytes)))))
+              (car/set k bytes))))
 
 (defmethod dref/read-bytes "redis"
   [^URI uri opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
-        [db ?f k] (location uri)
+        [db k] (location uri)
         conn-w-creds (-> connection
                          (assoc-in [:spec :password] (or (:password credentials) ""))
                          (assoc-in [:spec :db] db))]
     (car/wcar conn-w-creds
-              (if ?f
-                (car/hget ?f k)
-                (car/get k)))))
+              (car/get k))))
 
 (defmethod dref/delete-bytes! "redis"
   [^URI uri opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
-        [db ?f k] (location uri)]
+        [db k] (location uri)]
     (car/wcar (-> connection
                   (assoc-in [:spec :password] (or (:password credentials) ""))
                   (assoc-in [:spec :db] db))
-              (if ?f
-                (car/hdel ?f k)
-                (car/del k)))))
+              (car/del k))))
 
 (defmethod dref/do-atomic-swap! "redis"
   [^URI uri f opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
-        [db ?f k] (location uri)
+        [db k] (location uri)
         deserialize (dref/get-deserializer uri)
         serialize (dref/get-serializer uri)
         conn (-> connection
                  (assoc-in [:spec :password] (or (:password credentials) ""))
                  (assoc-in [:spec :db] db))]
     (let [[_ [_ res-raw]] (car/atomic conn 100
-                                      (car/watch ?f)
-                                      (let [curr-raw (if ?f
-                                                       (car/with-replies (car/hget ?f k))
-                                                       (car/with-replies (car/get k)))
+                                      (car/watch k)
+                                      (let [curr-raw (car/with-replies (car/get k))
                                             curr-val (when curr-raw
                                                        (deserialize curr-raw opts))]
                                         (car/multi)
-                                        (if ?f
-                                          (do
-                                            (car/hset ?f k (serialize (f curr-val) opts))
-                                            (car/hget ?f k))
-                                          (do
-                                            (car/set k (serialize (f curr-val) opts))
-                                            (car/get k)))))]
+                                        (car/set k (serialize (f curr-val) opts))
+                                        (car/get k)))]
       (deserialize res-raw opts))))
 
