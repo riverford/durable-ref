@@ -79,7 +79,7 @@
 
 (defn- get-credentials
   [opts connection]
-  (let [c1 (:credentials opts)
+  (let [c1 (-> opts :scheme :redis :carmine :credentials)
         c2 (get @credentials
                 (str (get-in connection [:spec :host])
                      ":"
