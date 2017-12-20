@@ -11,7 +11,7 @@ Heavily inspired by Rich Hickey's talk [The Language of the System](https://www.
 Available via clojars:
 
 ```clojure
-[riverford/durable-ref "0.1.4"]
+[riverford/durable-ref "0.1.5"]
 ```
 
 Begin with the [tutorial](#tutorial)
