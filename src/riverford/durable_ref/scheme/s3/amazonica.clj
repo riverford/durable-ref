@@ -21,14 +21,16 @@
 
 (defmethod dref/write-bytes! "s3"
   [^URI uri bytes opts]
-  (mapply s3/put-object
-    :bucket-name (.getAuthority uri)
-    :key (strip-leading-slash (.getPath uri))
-    :metadata {:content-length (count bytes)}
-    :input-stream (io/input-stream bytes)
-    (merge
-      (-> opts :scheme :s3 :amazonica :shared-opts)
-      (-> opts :scheme :s3 :amazonica :write-opts))))
+  (let [opts (merge
+               (-> opts :scheme :s3 :amazonica :shared-opts)
+               (-> opts :scheme :s3 :amazonica :write-opts))]
+    (mapply s3/put-object
+      :bucket-name (.getAuthority uri)
+      :key (strip-leading-slash (.getPath uri))
+      :metadata (merge {:content-length (count bytes)}
+                       (:metadata opts))
+      :input-stream (io/input-stream bytes)
+      (dissoc opts :metadata))))
 
 (defmethod dref/read-bytes "s3"
   [^URI uri opts]
