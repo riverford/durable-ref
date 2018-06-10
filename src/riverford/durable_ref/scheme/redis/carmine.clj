@@ -27,9 +27,28 @@
     [clojure.edn :as edn]
     [clojure.string :as str]
     [riverford.durable-ref.core :as dref]
-    [taoensso.carmine :as car])
+    [taoensso.carmine :as car]
+    [taoensso.carmine.protocol :as carp])
   (:import
     (java.net URI)))
+
+(comment
+  (add-credentials! "localhost" 6379 nil)
+  (def ref-1 (dref/reference "atomic:redis:tcp://localhost:6379/0/ref-1.edn"))
+  (deref ref-1)
+  (reset! ref-1 {:foo #{:a :b}})
+  (swap! ref-1 assoc :bar 42)
+  (swap! ref-1 dissoc :bar)
+
+  (let [r (dref/reference "atomic:redis:tcp://localhost:6379/0/r.edn")]
+    (reset! r 0)
+    (doseq [i (range 100)]
+      (future
+        (Thread/sleep 1000)
+        #_(dref/atomic-swap! r inc {:scheme {:redis {:carmine {:cas {:max-retries 10}}}}})
+        (swap! r inc)))
+    (Thread/sleep 2000)
+    (deref r)))
 
 (defonce connections (atom {}))
 (defonce credentials (atom {}))
@@ -109,19 +128,29 @@
   [^URI uri f opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
+        max-retries (get-in opts [:scheme :redis :carmine :cas :max-retries])
         [db k] (location uri)
         deserialize (dref/get-deserializer uri)
         serialize (dref/get-serializer uri)
         conn (cond-> connection
                  (:password credentials) (assoc-in [:spec :password] (:password credentials))
-                 true (assoc-in [:spec :db] db))]
-    (let [[_ [_ res-raw]] (car/atomic conn 100
-                                      (car/watch k)
-                                      (let [curr-raw (car/with-replies (car/get k))
-                                            curr-val (when curr-raw
-                                                       (deserialize curr-raw opts))]
-                                        (car/multi)
-                                        (car/set k (serialize (f curr-val) opts))
-                                        (car/get k)))]
-      (deserialize res-raw opts))))
+                 true (assoc-in [:spec :db] db))
+        exec-res (car/wcar
+                   conn
+                   (loop [idx 1]
+                     (car/watch k)
+                     (let [curr-raw (car/parse nil (car/with-replies (car/get k)))
+                           curr-val (when curr-raw
+                                      (deserialize curr-raw opts))]
+                       (car/multi)
+                       (car/set k (serialize (f curr-val) opts))
+                       (car/get k))
+                     (let [tx-res (car/with-replies (car/exec))]
+                       (if (nil? tx-res)
+                         (if (and max-retries (>= idx max-retries))
+                           (throw (ex-info "CAS max retries exceeded" {:max-retries max-retries :uri uri}))
+                           (recur (inc idx)))
+                         (car/return tx-res)))))
+        [exec-status final-exec-get-result] (last (carp/return-parsed-replies exec-res (not :as-pipeline)))]
+    (deserialize final-exec-get-result opts)))
 
