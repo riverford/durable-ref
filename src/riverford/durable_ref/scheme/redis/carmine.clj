@@ -79,9 +79,9 @@
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
         [db k] (location uri)]
-    (car/wcar (-> connection
-                  (assoc-in [:spec :password] (or (:password credentials) ""))
-                  (assoc-in [:spec :db] db))
+    (car/wcar (cond-> connection
+                  (:password credentials) (assoc-in [:spec :password] (:password credentials))
+                  true (assoc-in [:spec :db] db))
               (car/set k bytes))))
 
 (defmethod dref/read-bytes "redis"
@@ -89,9 +89,9 @@
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
         [db k] (location uri)
-        conn-w-creds (-> connection
-                         (assoc-in [:spec :password] (or (:password credentials) ""))
-                         (assoc-in [:spec :db] db))]
+        conn-w-creds (cond-> connection
+                         (:password credentials) (assoc-in [:spec :password] (:password credentials))
+                         true (assoc-in [:spec :db] db))]
     (car/wcar conn-w-creds
               (car/get k))))
 
@@ -100,9 +100,9 @@
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
         [db k] (location uri)]
-    (car/wcar (-> connection
-                  (assoc-in [:spec :password] (or (:password credentials) ""))
-                  (assoc-in [:spec :db] db))
+    (car/wcar (cond-> connection
+                  (:password credentials) (assoc-in [:spec :password] (:password credentials))
+                  true (assoc-in [:spec :db] db))
               (car/del k))))
 
 (defmethod dref/do-atomic-swap! "redis"
@@ -112,9 +112,9 @@
         [db k] (location uri)
         deserialize (dref/get-deserializer uri)
         serialize (dref/get-serializer uri)
-        conn (-> connection
-                 (assoc-in [:spec :password] (or (:password credentials) ""))
-                 (assoc-in [:spec :db] db))]
+        conn (cond-> connection
+                 (:password credentials) (assoc-in [:spec :password] (:password credentials))
+                 true (assoc-in [:spec :db] db))]
     (let [[_ [_ res-raw]] (car/atomic conn 100
                                       (car/watch k)
                                       (let [curr-raw (car/with-replies (car/get k))
