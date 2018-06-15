@@ -101,32 +101,40 @@
   [^URI uri bytes opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
-        [db k] (location uri)]
-    (car/wcar (cond-> connection
-                  (:password credentials) (assoc-in [:spec :password] (:password credentials))
-                  true (assoc-in [:spec :db] db))
-              (car/set k bytes))))
+        [db k] (location uri)
+        conn (-> connection
+                 (assoc-in [:spec :db] db)
+                 (cond->
+                   (:password credentials) (assoc-in [:spec :password] (:password credentials))))]
+    (car/wcar
+      conn
+      (car/set k bytes))))
 
 (defmethod dref/read-bytes "redis"
   [^URI uri opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
         [db k] (location uri)
-        conn-w-creds (cond-> connection
-                         (:password credentials) (assoc-in [:spec :password] (:password credentials))
-                         true (assoc-in [:spec :db] db))]
-    (car/wcar conn-w-creds
-              (car/get k))))
+        conn (-> connection
+                 (assoc-in [:spec :db] db)
+                 (cond->
+                   (:password credentials) (assoc-in [:spec :password] (:password credentials))))]
+    (car/wcar
+      conn
+      (car/get k))))
 
 (defmethod dref/delete-bytes! "redis"
   [^URI uri opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
-        [db k] (location uri)]
-    (car/wcar (cond-> connection
-                  (:password credentials) (assoc-in [:spec :password] (:password credentials))
-                  true (assoc-in [:spec :db] db))
-              (car/del k))))
+        [db k] (location uri)
+        conn (-> connection
+                 (assoc-in [:spec :db] db)
+                 (cond->
+                   (:password credentials) (assoc-in [:spec :password] (:password credentials))))]
+    (car/wcar
+      conn
+      (car/del k))))
 
 (defmethod dref/do-atomic-swap! "redis"
   [^URI uri f opts]
@@ -136,9 +144,10 @@
         [db k] (location uri)
         deserialize (dref/get-deserializer uri)
         serialize (dref/get-serializer uri)
-        conn (cond-> connection
-                 (:password credentials) (assoc-in [:spec :password] (:password credentials))
-                 true (assoc-in [:spec :db] db))
+        conn (-> connection
+                 (assoc-in [:spec :db] db)
+                 (cond->
+                   (:password credentials) (assoc-in [:spec :password] (:password credentials))))
         exec-res (car/wcar
                    conn
                    (loop [idx 1]
