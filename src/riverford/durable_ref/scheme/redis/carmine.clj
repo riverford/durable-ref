@@ -45,8 +45,12 @@
     (doseq [i (range 100)]
       (future
         (Thread/sleep 1000)
-        #_(dref/atomic-swap! r inc {:scheme {:redis {:carmine {:cas {:max-retries 10}}}}})
-        (swap! r inc)))
+        (dref/atomic-swap! r inc {:scheme {:redis {:carmine {:cas-back-off-fn (fn [^URI uri idx]
+                                                                                (when (< 3 idx)
+                                                                                  (throw (ex-info "CAS failure" {:idx idx :uri uri})))
+                                                                                (println (str "CAS conflict, backing off: " idx))
+                                                                                (Thread/sleep (* 20 idx)))}}}})
+        #_(swap! r inc)))
     (Thread/sleep 2000)
     (deref r)))
 
@@ -128,7 +132,7 @@
   [^URI uri f opts]
   (let [connection (uri->connection uri)
         credentials (get-credentials opts connection)
-        max-retries (get-in opts [:scheme :redis :carmine :cas :max-retries])
+        max-retries (get-in opts [:scheme :redis :carmine :cas-back-off-fn])
         [db k] (location uri)
         deserialize (dref/get-deserializer uri)
         serialize (dref/get-serializer uri)
@@ -147,8 +151,9 @@
                        (car/get k))
                      (let [tx-res (car/with-replies (car/exec))]
                        (if (nil? tx-res)
-                         (if (and max-retries (>= idx max-retries))
-                           (throw (ex-info "CAS max retries exceeded" {:max-retries max-retries :uri uri}))
+                         (do
+                           (when-let [cas-back-off-fn (get-in opts [:scheme :redis :carmine :cas-back-off-fn])]
+                             (cas-back-off-fn uri idx))
                            (recur (inc idx)))
                          (car/return tx-res)))))
         [exec-status final-exec-get-result] (last (carp/return-parsed-replies exec-res (not :as-pipeline)))]
