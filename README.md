@@ -39,6 +39,7 @@ Available by `require`ing the appropriate `riverford.durable-ref.scheme` namespa
 
 - [Amazon S3](#amazon-s3) supporting `value`, `volatile`
 - [Amazon DynamoDB](#amazon-dynamodb) supporting `value`, `volatile`, `atomic`
+- [Redis](#redis) supporting `value`, `volatile`, `atomic`
 
 ## Provided Formats
 
@@ -401,6 +402,67 @@ Will use column `data` to store serialized objects. The column `version` is used
                                  ;; Receives the uri and current number of CAS iterations performed
                                  ;; Use to implement things like back-off.
                                  }}}}
+
+```
+
+### Redis
+
+Scheme: `redis`
+
+URI convention: `redis:tcp://{host}:{port}/{database-number}/{id}.{extension}
+e.g. `redis:tcp://localhost:6379/0/fred.edn`
+
+Supported refs: `value`, `volatile`, `atomic`
+
+To be able to use Clojure's reference type interfaces you can add the Redis credentials
+using `riverford.durable-ref.scheme.redis.carmine/add-credentials!`, and remove them 
+again when no longer needed with `riverford.durable-ref.scheme.redis.carmine/remove-credentials!`.
+This will allow you to do things like this:
+
+```clojure
+(require '[riverford.durable-ref.core :as dref])
+(require '[riverford.durable-ref.scheme.redis.carmine :refer [add-credentials!]])
+
+(add-credentials! "localhost" 6379 "foobar")
+(def ref-1 (dref/reference "atomic:redis:tcp://localhost:6379/0/ref-1.edn"))
+@ref-1 ;=> nil
+(reset! ref-1 {:foo #{:a :b}})
+@ref-1 ;=> {:foo #{:a :b}}
+(swap! ref-1 assoc :bar 42)
+@ref-1 ;=> {:foo #{:a :b} :bar 42}
+```
+
+By default the CAS implementation spins forever with no backoff. If you are in a
+scenario where you think a maximum number of retries is useful, or want to provide
+a back-off scheme, you can use the dref API:
+
+```clojure
+(require '[riverford.durable-ref.core :as dref])
+(require '[riverford.durable-ref.scheme.redis.carmine])
+
+(def ref-1 (dref/reference "atomic:redis:tcp://localhost:6379/0/ref-1.edn"))
+(dref/value ref-1 {:scheme {:redis {:carmine {:creds {:password "foobar"}}}}})
+(dref/atomic-swap! ref-1 inc {:scheme {:redis {:carmine {:creds {:password "foobar"}
+                                                         :cas-back-off-fn (fn [^URI uri idx]
+                                                                            (Thread/sleep (* 10 idx)))}}}})
+```
+
+#### using [carmine](https://github.com/taoensso/carmine)
+
+```clojure
+:dependencies [com.taoensso/carmine "2.16.0"]
+(require '[riverford.durable-ref.scheme.redis.carmine])
+
+;; Storage options (optionally provide in an options map to persist, value, overwrite!, delete!, atomic-swap!)
+{:scheme {:redis {:carmine {:creds {} 
+                            ;; use if you want to override your access credentials
+                            ;; key is `:password`
+
+                            :cas-back-off-fn (fn [uri n])
+                            ;; a callback function called on conditional put failure.
+                            ;; Receives the uri and current number of CAS iterations performed
+                            ;; Use to implement things like back-off.
+                            }}}}
 
 ```
 
