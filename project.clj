@@ -1,4 +1,4 @@
-(defproject riverford/durable-ref "0.1.5"
+(defproject riverford/durable-ref "0.1.6"
   :description "Durable reference types"
   :url "https://github.com/riverford/durable-ref/"
   :license "https://github.com/riverford/durable-ref/blob/master/LICENSE"
