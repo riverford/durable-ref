@@ -539,7 +539,7 @@ These are the storage multimethods you can implement currently (dispatching on t
 
 ### Formats
 
-These are the format multimethods you can implement currently (dispatching on the scheme):
+These are the format multimethods you can implement currently (dispatching on the extension):
 - `serialize`, receives the object, the format string, and options passed to `persist!`, `overwrite!`
 - `deserialize`, receives the serialized byte array, the format string and options passed to `value`.
 
